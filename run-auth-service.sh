@@ -16,7 +16,6 @@ export DB_PASS=${DB_PASS:-""}
 echo "------------------------------------------------"
 echo "🚀 Starting Auth Service..."
 echo "🔑 JWT Secret: [HIDDEN]"
-echo "🔑 JWT Secret: JWT_SECRET=${JWT_SECRET}"
 echo "📅 Expiration: $JWT_EXPIRATION ms"
 echo "------------------------------------------------"
 cd services/auth-service || exit
