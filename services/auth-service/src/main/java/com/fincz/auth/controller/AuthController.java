@@ -4,6 +4,7 @@ import com.fincz.auth.dto.AuthResponse;
 import com.fincz.auth.dto.LoginRequest;
 import com.fincz.auth.dto.SignupRequest;
 import com.fincz.auth.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,13 +20,13 @@ public class AuthController {
     private final AuthService service;
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody SignupRequest req) {
+    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest req) {
         service.signup(req);
         return ResponseEntity.ok("User registered");
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest req) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest req) {
         String token = service.login(req);
         return ResponseEntity.ok(new AuthResponse(token));
     }

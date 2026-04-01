@@ -3,6 +3,7 @@ package com.fincz.auth.service;
 import com.fincz.auth.dto.LoginRequest;
 import com.fincz.auth.dto.SignupRequest;
 import com.fincz.auth.entity.User;
+import com.fincz.auth.exception.AuthException;
 import com.fincz.auth.repository.UserRepository;
 import com.fincz.auth.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -19,14 +20,14 @@ public class AuthService {
 
     public void signup(SignupRequest req) {
 
-        if (repo.findByEmail(req.email).isPresent()) {
-            throw new RuntimeException("Email already exists");
+        if (repo.findByEmail(req.getEmail()).isPresent()) {
+            throw new AuthException("Email already exists");
         }
 
         User user = new User();
-        user.setName(req.name);
-        user.setEmail(req.email);
-        user.setPassword(encoder.encode(req.password));
+        user.setName(req.getName());
+        user.setEmail(req.getEmail());
+        user.setPassword(encoder.encode(req.getPassword()));
         user.setRole("ROLE_USER");
 
         repo.save(user);
@@ -34,11 +35,11 @@ public class AuthService {
 
     public String login(LoginRequest req) {
 
-        User user = repo.findByEmail(req.email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = repo.findByEmail(req.getEmail())
+                .orElseThrow(() -> new AuthException("User not found"));
 
-        if (!encoder.matches(req.password, user.getPassword())) {
-            throw new RuntimeException("Invalid password");
+        if (!encoder.matches(req.getPassword(), user.getPassword())) {
+            throw new AuthException("Invalid password");
         }
 
         return jwtUtil.generateToken(user.getEmail());
