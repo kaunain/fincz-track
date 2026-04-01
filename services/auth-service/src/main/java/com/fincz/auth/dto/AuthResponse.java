@@ -1,9 +1,14 @@
 package com.fincz.auth.dto;
 
-public class AuthResponse {
-    public String token;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-    public AuthResponse(String token) {
-        this.token = token;
-    }
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class AuthResponse {
+    private String token;
 }

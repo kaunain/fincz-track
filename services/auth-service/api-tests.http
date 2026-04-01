@@ -1,0 +1,30 @@
+@baseUrl = http://localhost:8081
+
+### 1. Test Controller (Service Status)
+# Isse check karein ki Auth Service sahi se chal rahi hai ya nahi.
+GET {{baseUrl}}/test
+
+###
+
+### 2. User Signup
+# Naya user register karne ke liye.
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+    "name": "Kaunain Ahmad",
+    "email": "kaunain@example.com",
+    "password": "password123"
+}
+
+###
+
+### 3. User Login
+# Login karke JWT token prapt karne ke liye.
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "kaunain@example.com",
+    "password": "password123"
+}
