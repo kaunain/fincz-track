@@ -5,6 +5,10 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * @author Kaunain Ahmad
+ * @since April 2026
+ */
 @Getter
 @Setter
 public class LoginRequest {

@@ -10,6 +10,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+/**
+ * @author Kaunain Ahmad
+ * @since April 2026
+ * 
+ * Service layer handling core authentication business logic.
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -18,8 +24,13 @@ public class AuthService {
     private final PasswordEncoder encoder;
     private final JwtUtil jwtUtil;
 
+    /**
+     * Handles user registration.
+     * Throws AuthException if the email is already registered.
+     */
     public void signup(SignupRequest req) {
 
+        // Prevent duplicate registrations
         if (repo.findByEmail(req.getEmail()).isPresent()) {
             throw new AuthException("Email already exists");
         }
@@ -33,11 +44,17 @@ public class AuthService {
         repo.save(user);
     }
 
+    /**
+     * Authenticates user credentials and generates a JWT.
+     * 
+     * @return Generated JWT string
+     */
     public String login(LoginRequest req) {
 
         User user = repo.findByEmail(req.getEmail())
                 .orElseThrow(() -> new AuthException("User not found"));
 
+        // Validate the provided raw password against the hashed database password
         if (!encoder.matches(req.getPassword(), user.getPassword())) {
             throw new AuthException("Invalid password");
         }
