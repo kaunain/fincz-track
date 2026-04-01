@@ -5,6 +5,10 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * @author Kaunain Ahmad
+ * @since April 2026
+ */
 @Configuration
 @ConfigurationProperties(prefix = "jwt")
 @Getter

@@ -6,6 +6,10 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * @author Kaunain Ahmad
+ * @since April 2026
+ */
 @Getter
 @Setter
 public class SignupRequest {
