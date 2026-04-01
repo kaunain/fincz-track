@@ -12,9 +12,9 @@ POST {{baseUrl}}/auth/signup
 Content-Type: application/json
 
 {
-    "name": "Kaunain Ahmad",
-    "email": "kaunain@example.com",
-    "password": "password123"
+    "name": "Test User",
+    "email": "test@fincz.com",
+    "password": "java@123"
 }
 
 ###
@@ -25,6 +25,6 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "kaunain@example.com",
-    "password": "password123"
+    "email": "test@fincz.com",
+    "password": "java@123"
 }
