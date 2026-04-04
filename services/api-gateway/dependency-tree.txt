@@ -1,0 +1,69 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -----------------------< com.fincz:api-gateway >------------------------
+[INFO] Building API Gateway 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- dependency:3.9.0:tree (default-cli) @ api-gateway ---
+[INFO] com.fincz:api-gateway:jar:0.0.1-SNAPSHOT
+[INFO] +- org.springframework.cloud:spring-cloud-starter-gateway:jar:4.2.0:compile
+[INFO] |  +- org.springframework.cloud:spring-cloud-starter:jar:4.2.0:compile (version managed from 4.2.0)
+[INFO] |  |  +- (org.springframework.boot:spring-boot-starter:jar:4.0.5:compile - version managed from 3.4.0; omitted for duplicate)
+[INFO] |  |  +- org.springframework.cloud:spring-cloud-context:jar:4.2.0:compile (version managed from 4.2.0)
+[INFO] |  |  \- org.springframework.cloud:spring-cloud-commons:jar:4.2.0:compile (version managed from 4.2.0)
+[INFO] |  +- org.springframework.cloud:spring-cloud-gateway-server:jar:4.2.0:compile (version managed from 4.2.0)
+[INFO] |  |  +- (org.springframework.boot:spring-boot-starter:jar:4.0.5:compile - version managed from 3.4.0; omitted for duplicate)
+[INFO] |  |  \- org.springframework.boot:spring-boot-starter-validation:jar:4.0.5:compile (version managed from 3.4.0)
+[INFO] |  |     +- (org.springframework.boot:spring-boot-starter:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  |     \- org.springframework.boot:spring-boot-validation:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |  |        \- (org.springframework.boot:spring-boot:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  \- (org.springframework.boot:spring-boot-starter-webflux:jar:4.0.5:compile - version managed from 3.4.0; omitted for duplicate)
+[INFO] +- org.springframework.boot:spring-boot-starter-security:jar:4.0.5:compile
+[INFO] |  +- org.springframework.boot:spring-boot-starter:jar:4.0.5:compile (version managed from 4.0.5; scope not updated to compile)
+[INFO] |  |  +- org.springframework.boot:spring-boot-starter-logging:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |  |  \- (org.springframework.boot:spring-boot-autoconfigure:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  \- org.springframework.boot:spring-boot-security:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |     \- (org.springframework.boot:spring-boot:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] +- org.springframework.boot:spring-boot-starter-webflux:jar:4.0.5:compile
+[INFO] |  +- (org.springframework.boot:spring-boot-starter:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  +- org.springframework.boot:spring-boot-starter-jackson:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |  |  +- (org.springframework.boot:spring-boot-starter:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  |  \- org.springframework.boot:spring-boot-jackson:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |  |     \- (org.springframework.boot:spring-boot:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  +- org.springframework.boot:spring-boot-starter-reactor-netty:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |  |  +- (org.springframework.boot:spring-boot-starter:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  |  +- (org.springframework.boot:spring-boot-reactor:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  |  \- org.springframework.boot:spring-boot-reactor-netty:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |  |     +- (org.springframework.boot:spring-boot-web-server:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  |     \- org.springframework.boot:spring-boot-netty:jar:4.0.5:runtime (version managed from 4.0.5)
+[INFO] |  |        \- (org.springframework.boot:spring-boot:jar:4.0.5:runtime - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  +- org.springframework.boot:spring-boot-reactor:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |  |  \- (org.springframework.boot:spring-boot:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  \- org.springframework.boot:spring-boot-webflux:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |     +- (org.springframework.boot:spring-boot:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |     +- org.springframework.boot:spring-boot-http-codec:jar:4.0.5:compile (version managed from 4.0.5)
+[INFO] |     |  \- (org.springframework.boot:spring-boot:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] |     \- org.springframework.boot:spring-boot-web-server:jar:4.0.5:compile (version managed from 4.0.5; scope not updated to compile)
+[INFO] |        \- (org.springframework.boot:spring-boot:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] +- org.springframework.boot:spring-boot-devtools:jar:4.0.5:runtime
+[INFO] |  +- org.springframework.boot:spring-boot:jar:4.0.5:compile (version managed from 4.0.5; scope not updated to compile)
+[INFO] |  \- org.springframework.boot:spring-boot-autoconfigure:jar:4.0.5:compile (version managed from 4.0.5; scope not updated to compile)
+[INFO] |     \- (org.springframework.boot:spring-boot:jar:4.0.5:compile - version managed from 4.0.5; omitted for duplicate)
+[INFO] +- org.springframework.boot:spring-boot-starter-test:jar:4.0.5:test
+[INFO] |  +- (org.springframework.boot:spring-boot-starter:jar:4.0.5:test - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  +- org.springframework.boot:spring-boot-test:jar:4.0.5:test (version managed from 4.0.5)
+[INFO] |  |  \- (org.springframework.boot:spring-boot:jar:4.0.5:test - version managed from 4.0.5; omitted for duplicate)
+[INFO] |  \- org.springframework.boot:spring-boot-test-autoconfigure:jar:4.0.5:test (version managed from 4.0.5)
+[INFO] |     \- (org.springframework.boot:spring-boot-test:jar:4.0.5:test - version managed from 4.0.5; omitted for duplicate)
+[INFO] +- io.jsonwebtoken:jjwt-api:jar:0.12.6:compile
+[INFO] +- io.jsonwebtoken:jjwt-impl:jar:0.12.6:runtime
+[INFO] |  \- (io.jsonwebtoken:jjwt-api:jar:0.12.6:runtime - omitted for duplicate)
+[INFO] \- io.jsonwebtoken:jjwt-jackson:jar:0.12.6:runtime
+[INFO]    \- (io.jsonwebtoken:jjwt-api:jar:0.12.6:runtime - omitted for duplicate)
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.660 s
+[INFO] Finished at: 2026-04-04T09:42:14+05:30
+[INFO] ------------------------------------------------------------------------
