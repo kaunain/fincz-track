@@ -12,6 +12,13 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Detect Docker Compose version (V2 "docker compose" vs V1 "docker-compose")
+if docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+else
+    DOCKER_COMPOSE="docker-compose"
+fi
+
 # Load environment variables
 if [ -f ".env.postgres" ]; then
     export $(cat .env.postgres | grep -v '#' | xargs)
@@ -55,7 +62,7 @@ EOF
 # Function to start PostgreSQL
 start_postgres() {
     echo -e "${BLUE}🚀 Starting PostgreSQL...${NC}"
-    docker-compose up -d postgres
+    $DOCKER_COMPOSE up -d postgres
     
     # Wait for service to be ready
     echo -e "${YELLOW}⏳ Waiting for PostgreSQL to be ready...${NC}"
@@ -77,33 +84,26 @@ start_postgres() {
 # Function to stop PostgreSQL
 stop_postgres() {
     echo -e "${BLUE}🛑 Stopping PostgreSQL...${NC}"
-    docker-compose down postgres
+    $DOCKER_COMPOSE down postgres
     echo -e "${GREEN}✅ PostgreSQL stopped${NC}"
-}
-
-# Function to restart PostgreSQL
-restart_postgres() {
-    stop_postgres
-    sleep 2
-    start_postgres
 }
 
 # Function to show status
 show_status() {
     echo -e "${BLUE}📊 PostgreSQL Status${NC}"
-    docker-compose ps postgres || echo -e "${YELLOW}Container not running${NC}"
+    $DOCKER_COMPOSE ps postgres || echo -e "${YELLOW}Container not running${NC}"
 }
 
 # Function to show logs
 show_logs() {
     echo -e "${BLUE}📋 PostgreSQL Logs${NC}"
-    docker-compose logs postgres
+    $DOCKER_COMPOSE logs postgres
 }
 
 # Function to follow logs
 follow_logs() {
     echo -e "${BLUE}📋 PostgreSQL Logs (Following)${NC}"
-    docker-compose logs -f postgres
+    $DOCKER_COMPOSE logs -f postgres
 }
 
 # Function to open psql shell
@@ -151,9 +151,9 @@ reset_postgres() {
     fi
     
     echo -e "${BLUE}🗑️  Resetting databases...${NC}"
-    docker-compose down -v
+    $DOCKER_COMPOSE down -v
     sleep 2
-    docker-compose up -d postgres
+    $DOCKER_COMPOSE up -d postgres
     
     echo -e "${YELLOW}⏳ Waiting for PostgreSQL to initialize...${NC}"
     sleep 5
@@ -172,7 +172,7 @@ clean_postgres() {
     fi
     
     echo -e "${BLUE}🗑️  Cleaning up...${NC}"
-    docker-compose down -v
+    $DOCKER_COMPOSE down -v
     echo -e "${GREEN}✅ Cleanup completed${NC}"
 }
 
