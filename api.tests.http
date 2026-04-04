@@ -1,5 +1,6 @@
 @authBaseUrl = http://localhost:8081
 @userBaseUrl = http://localhost:8082
+@portfolioBaseUrl = http://localhost:8083
 
 ### Auth Service Tests
 
@@ -77,4 +78,59 @@ Authorization: Bearer {{token}}
 ### 6. Get User by ID (User Service)
 # Fetch a user by its numeric ID.
 GET {{userBaseUrl}}/users/1
+Authorization: Bearer {{token}}
+
+###
+
+### Portfolio Service Tests
+
+### 7. Add Investment (Portfolio Service)
+# Add a stock investment to portfolio
+POST {{portfolioBaseUrl}}/portfolio/add
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "type": "stock",
+    "name": "Tata Consultancy Services",
+    "symbol": "TCS.NS",
+    "units": 10,
+    "buyPrice": 3200.50
+}
+
+###
+
+### 8. Get Portfolio (Portfolio Service)
+# Get user's complete portfolio
+GET {{portfolioBaseUrl}}/portfolio
+Authorization: Bearer {{token}}
+
+###
+
+### 9. Get Net Worth (Portfolio Service)
+# Get user's net worth calculation
+GET {{portfolioBaseUrl}}/portfolio/networth
+Authorization: Bearer {{token}}
+
+###
+
+### 10. Add Mutual Fund Investment (Portfolio Service)
+# Add a mutual fund investment
+POST {{portfolioBaseUrl}}/portfolio/add
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "type": "mf",
+    "name": "HDFC Flexi Cap Fund",
+    "symbol": "HDFCFCF",
+    "units": 100,
+    "buyPrice": 150.75
+}
+
+###
+
+### 11. Get Stock Portfolio (Portfolio Service)
+# Get only stock investments
+GET {{portfolioBaseUrl}}/portfolio/type/stock
 Authorization: Bearer {{token}}
