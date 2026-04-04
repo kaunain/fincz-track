@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 /**
@@ -87,7 +88,7 @@ public class Portfolio {
         if (totalInvestment != null && currentValue != null) {
             pnl = currentValue.subtract(totalInvestment);
             if (totalInvestment.compareTo(BigDecimal.ZERO) != 0) {
-                pnlPercentage = pnl.divide(totalInvestment, 6, BigDecimal.ROUND_HALF_UP)
+                pnlPercentage = pnl.divide(totalInvestment, 6, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100));
             }
         }

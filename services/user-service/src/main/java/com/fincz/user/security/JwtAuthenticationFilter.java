@@ -51,10 +51,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getSecret()));
             Claims claims = Jwts.parser()
-                    .setSigningKey(key)
+                    .verifyWith(key)
                     .build()
-                    .parseClaimsJws(jwt)
-                    .getBody();
+                    .parseSignedClaims(jwt)
+                    .getPayload();
 
             userEmail = claims.getSubject();
 

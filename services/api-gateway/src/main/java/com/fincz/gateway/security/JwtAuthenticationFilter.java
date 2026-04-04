@@ -81,10 +81,10 @@ public class JwtAuthenticationFilter implements GatewayFilter {
     private Claims validateToken(String token) {
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
         return Jwts.parser()
-            .setSigningKey(key)
+            .verifyWith(key)
             .build()
-            .parseClaimsJws(token)
-            .getBody();
+            .parseSignedClaims(token)
+            .getPayload();
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
