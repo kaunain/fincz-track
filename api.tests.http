@@ -1,0 +1,80 @@
+@authBaseUrl = http://localhost:8081
+@userBaseUrl = http://localhost:8082
+
+### Auth Service Tests
+
+### 1. Test Controller (Auth Service Status)
+# Check if Auth Service is running properly.
+GET {{authBaseUrl}}/test
+
+###
+
+### 2. User Signup (Auth Service)
+# Register a new user.
+POST {{authBaseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+    "name": "Test User",
+    "email": "test@fincz.com",
+    "password": "java@123"
+}
+
+###
+
+### 3. User Login (Auth Service)
+# @name login
+# Authenticate and store the returned JWT in a global variable.
+POST {{authBaseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "test@fincz.com",
+    "password": "java@123"
+}
+
+###
+
+@token = {{login.response.body.token}}
+
+### 3.1 Create User Profile (User Service)
+# Create user profile in user-service after signup
+POST {{userBaseUrl}}/users/profile
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "name": "Test User",
+    "email": "test@fincz.com",
+    "password": "dummy_password"
+}
+
+###
+
+### User Service Tests
+
+### 4. Get Current User (User Service)
+# Use the JWT from the login request to call the protected user endpoint.
+GET {{userBaseUrl}}/users/me
+Authorization: Bearer {{token}}
+
+### 5. Update Current User (User Service)
+# Update the authenticated user's profile.
+PUT {{userBaseUrl}}/users/me
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "name": "Updated User",
+    "phone": "+12345678901",
+    "age": 30,
+    "occupation": "Engineer",
+    "financialGoals": "Save for retirement"
+}
+
+###
+
+### 6. Get User by ID (User Service)
+# Fetch a user by its numeric ID.
+GET {{userBaseUrl}}/users/1
+Authorization: Bearer {{token}}

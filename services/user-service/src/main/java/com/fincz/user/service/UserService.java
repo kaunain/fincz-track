@@ -19,13 +19,20 @@ public class UserService {
     private final UserRepository repo;
 
     /**
-     * Fetches user profile data based on email.
+     * Creates a new user profile with basic information.
+     * Used for testing purposes when user signs up in auth-service.
      */
-    public UserResponse getProfile(String email) {
-        User user = repo.findByEmail(email)
-                .orElseThrow(() -> new UserException("User profile not found"));
-        
-        return mapToResponse(user);
+    public UserResponse createProfile(String email, String name) {
+        if (repo.findByEmail(email).isPresent()) {
+            throw new UserException("User profile already exists");
+        }
+
+        User user = new User();
+        user.setEmail(email);
+        user.setName(name);
+        user.setRole("USER");
+
+        return mapToResponse(repo.save(user));
     }
 
     /**
