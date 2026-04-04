@@ -1,0 +1,18 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: market-data-service
+  cache:
+    type: simple
+
+# External API configurations (for demo, using mock data)
+market:
+  api:
+    base-url: https://api.example.com
+    key: ${MARKET_API_KEY:demo_key}
+
+# Cache configuration
+cache:
+  ttl: 300000  # 5 minutes in milliseconds

@@ -1,6 +1,7 @@
 @authBaseUrl = http://localhost:8081
 @userBaseUrl = http://localhost:8082
 @portfolioBaseUrl = http://localhost:8083
+@marketBaseUrl = http://localhost:8084
 
 ### Auth Service Tests
 
@@ -134,3 +135,17 @@ Content-Type: application/json
 # Get only stock investments
 GET {{portfolioBaseUrl}}/portfolio/type/stock
 Authorization: Bearer {{token}}
+
+###
+
+### Market Data Service Tests
+
+### 12. Get Stock Price (Market Data Service)
+# Get current price for TCS stock
+GET {{marketBaseUrl}}/market/price/TCS.NS
+
+###
+
+### 13. Get Mutual Fund Price (Market Data Service)
+# Get current price for HDFC Flexi Cap Fund
+GET {{marketBaseUrl}}/market/price/HDFCFCF

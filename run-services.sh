@@ -7,7 +7,7 @@
 
 # Check if service name is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 {auth|user|gateway|portfolio|all}"
+    echo "Usage: $0 {auth|user|gateway|portfolio|market|all}"
     echo "Example: $0 auth"
     echo "Example: $0 all         # run all services in parallel"
     exit 1
@@ -28,7 +28,7 @@ export JWT_EXPIRATION=${JWT_EXPIRATION:-86400000} # 24 Hours
 export DB_USER=${DB_USER:-"sa"}
 export DB_PASS=${DB_PASS:-""}
 
-if [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway" ] || [ "$SERVICE" = "portfolio" ]; then
+if [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway" ] || [ "$SERVICE" = "portfolio" ] || [ "$SERVICE" = "market" ]; then
     if [ "$SERVICE" = "auth" ]; then
         export DB_URL=${DB_URL:-"jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"}
         SERVICE_NAME="Auth Service"
@@ -40,10 +40,13 @@ if [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway
     elif [ "$SERVICE" = "gateway" ]; then
         SERVICE_NAME="API Gateway"
         SERVICE_DIR="services/api-gateway"
-    else
+    elif [ "$SERVICE" = "portfolio" ]; then
         export DB_URL=${DB_URL:-"jdbc:h2:mem:portfoliodb;DB_CLOSE_DELAY=-1"}
         SERVICE_NAME="Portfolio Service"
         SERVICE_DIR="services/portfolio-service"
+    else
+        SERVICE_NAME="Market Data Service"
+        SERVICE_DIR="services/market-data-service"
     fi
 
     echo "------------------------------------------------"
@@ -81,6 +84,7 @@ elif [ "$SERVICE" = "both" ] || [ "$SERVICE" = "all" ]; then
         (cd services/user-service && export DB_URL="jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1" && mvn spring-boot:run) &
         (cd services/api-gateway && mvn spring-boot:run) &
         (cd services/portfolio-service && export DB_URL="jdbc:h2:mem:portfoliodb;DB_CLOSE_DELAY=-1" && mvn spring-boot:run) &
+        (cd services/market-data-service && mvn spring-boot:run) &
     else
         (cd services/auth-service && export DB_URL="jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE" && mvn spring-boot:run) &
         (cd services/user-service && export DB_URL="jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1" && mvn spring-boot:run) &
@@ -88,7 +92,7 @@ elif [ "$SERVICE" = "both" ] || [ "$SERVICE" = "all" ]; then
     wait
 
 else
-    echo "Invalid service name. Use 'auth', 'user', 'gateway', 'portfolio', or 'all'."
+    echo "Invalid service name. Use 'auth', 'user', 'gateway', 'portfolio', 'market', or 'all'."
     exit 1
 fi
 
