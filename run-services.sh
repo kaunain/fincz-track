@@ -7,9 +7,10 @@
 
 # Check if service name is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 {auth|user|gateway|portfolio|market|notification|all}"
+    echo "Usage: $0 {auth|user|gateway|portfolio|market|notification|all|stop}"
     echo "Example: $0 auth"
     echo "Example: $0 all         # run all services in parallel"
+    echo "Example: $0 stop        # stop all running services"
     exit 1
 fi
 
@@ -28,7 +29,22 @@ export JWT_EXPIRATION=${JWT_EXPIRATION:-86400000} # 24 Hours
 export DB_USER=${DB_USER:-"sa"}
 export DB_PASS=${DB_PASS:-""}
 
-if [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway" ] || [ "$SERVICE" = "portfolio" ] || [ "$SERVICE" = "market" ] || [ "$SERVICE" = "notification" ]; then
+if [ "$SERVICE" = "stop" ]; then
+    echo "------------------------------------------------"
+    echo "🛑 Stopping ALL Services..."
+    echo "------------------------------------------------"
+
+    # Kill all Java processes running Spring Boot
+    pkill -f "spring-boot:run" 2>/dev/null || true
+
+    # Kill processes on specific ports
+    for port in 8080 8081 8082 8083 8084 8085; do
+        lsof -ti:$port | xargs kill -9 2>/dev/null || true
+    done
+
+    echo "✅ All services stopped successfully"
+    exit 0
+fi
     if [ "$SERVICE" = "auth" ]; then
         export DB_URL=${DB_URL:-"jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"}
         SERVICE_NAME="Auth Service"
@@ -97,18 +113,6 @@ elif [ "$SERVICE" = "both" ] || [ "$SERVICE" = "all" ]; then
     wait
 
 else
-    echo "Invalid service name. Use 'auth', 'user', 'gateway', 'portfolio', 'market', 'notification', or 'all'."
+    echo "Invalid service name. Use 'auth', 'user', 'gateway', 'portfolio', 'market', 'notification', 'all', or 'stop'."
     exit 1
 fi
-
-export DB_USER=${DB_USER:-"sa"}
-export DB_PASS=${DB_PASS:-""}
-
-echo "------------------------------------------------"
-echo "🚀 Starting $SERVICE_NAME..."
-echo "🔑 JWT Secret: [HIDDEN]"
-echo "📅 Expiration: $JWT_EXPIRATION ms"
-echo "------------------------------------------------"
-
-cd "$SERVICE_DIR" || exit
-mvn spring-boot:run

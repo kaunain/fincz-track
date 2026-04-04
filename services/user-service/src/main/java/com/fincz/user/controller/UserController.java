@@ -57,4 +57,12 @@ public class UserController {
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
         return ResponseEntity.ok(service.getById(id));
     }
+
+    /**
+     * Health check endpoint.
+     */
+    @GetMapping("/test")
+    public ResponseEntity<String> test() {
+        return ResponseEntity.ok("User Service is running!");
+    }
 }

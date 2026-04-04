@@ -194,3 +194,28 @@ Authorization: Bearer {{token}}
 # Manually trigger portfolio alert check
 POST {{notificationBaseUrl}}/notifications/portfolio-alert
 Authorization: Bearer {{token}}
+
+###
+
+### Additional Portfolio Service Tests
+
+### 19. Get Mutual Fund Portfolio (Portfolio Service)
+# Get only mutual fund investments
+GET {{portfolioBaseUrl}}/portfolio/type/mf
+Authorization: Bearer {{token}}
+
+###
+
+### Additional Market Data Tests
+
+### 20. Get Stock Price for Different Symbol (Market Data Service)
+# Get current price for Infosys stock
+GET {{marketBaseUrl}}/market/price/INFY.NS
+
+###
+
+### 21. Get Mutual Fund Price for Different Fund (Market Data Service)
+# Get current price for SBI Bluechip Fund
+GET {{marketBaseUrl}}/market/price/SBIBCF
+
+###
