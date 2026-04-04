@@ -29,6 +29,13 @@ else
     export POSTGRES_PORT="5432"
 fi
 
+# Detect Docker Compose version
+if docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+else
+    DOCKER_COMPOSE="docker-compose"
+fi
+
 echo "📦 Starting PostgreSQL container..."
 echo "   User: $POSTGRES_USER"
 echo "   Database: $POSTGRES_DB"
@@ -36,18 +43,18 @@ echo "   Port: $POSTGRES_PORT"
 echo ""
 
 # Start PostgreSQL container
-docker-compose up -d postgres
+$DOCKER_COMPOSE up -d postgres
 
 # Wait for PostgreSQL to be ready
 echo "⏳ Waiting for PostgreSQL to be ready..."
 sleep 5
 
 # Check if container is running
-if docker-compose ps postgres | grep -q "Up"; then
+if $DOCKER_COMPOSE ps postgres | grep -q "Up"; then
     echo "✅ PostgreSQL container started successfully!"
     echo ""
     echo "📊 Database Status:"
-    docker-compose ps postgres
+    $DOCKER_COMPOSE ps postgres
     echo ""
     echo "🔗 Connection Details:"
     echo "   Host: localhost"
@@ -60,11 +67,11 @@ if docker-compose ps postgres | grep -q "Up"; then
     echo "   psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB"
     echo ""
     echo "💡 To view logs:"
-    echo "   docker-compose logs -f postgres"
+    echo "   $DOCKER_COMPOSE logs -f postgres"
     echo ""
 else
     echo "❌ Failed to start PostgreSQL container!"
     echo "📋 Error logs:"
-    docker-compose logs postgres
+    $DOCKER_COMPOSE logs postgres
     exit 1
 fi

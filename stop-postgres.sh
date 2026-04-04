@@ -17,14 +17,21 @@ if [ ! -f "docker-compose.yml" ]; then
     exit 1
 fi
 
+# Detect Docker Compose version
+if docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+else
+    DOCKER_COMPOSE="docker-compose"
+fi
+
 # Check if container is running
-if docker-compose ps postgres 2>/dev/null | grep -q "Up"; then
+if $DOCKER_COMPOSE ps postgres 2>/dev/null | grep -q "Up"; then
     echo "📊 Current PostgreSQL status:"
-    docker-compose ps postgres
+    $DOCKER_COMPOSE ps postgres
     echo ""
     
     echo "Stopping PostgreSQL container..."
-    docker-compose down postgres
+    $DOCKER_COMPOSE down postgres
     
     echo "✅ PostgreSQL stopped successfully!"
     echo ""
@@ -37,16 +44,16 @@ cat << 'EOF'
 🛑 Cleanup Options:
 
 1. To remove container and keep data:
-   docker-compose down postgres
+   $DOCKER_COMPOSE down postgres
 
 2. To remove container AND data:
-   docker volume rm fincz-track-postgres || true
-   docker-compose down -v
+   docker volume rm fincz-track_postgres_data || true
+   $DOCKER_COMPOSE down -v
 
 3. To stop all services:
-   docker-compose down
+   $DOCKER_COMPOSE down
 
 4. To stop all services and remove volumes:
-   docker-compose down -v
+   $DOCKER_COMPOSE down -v
 
 EOF

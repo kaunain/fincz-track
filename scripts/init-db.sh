@@ -1,0 +1,113 @@
+#!/bin/bash
+set -e
+
+# Fincz Track Database Initialization Script
+# This script creates all necessary databases and tables.
+# It is executed automatically by the Postgres Docker image on first startup.
+
+POSTGRES="psql --username $POSTGRES_USER"
+
+echo "🚀 Starting database initialization..."
+
+# Function to create a database and initialize its schema
+init_service_db() {
+    local db_name=$1
+    local sql_content=$2
+
+    echo "📂 Initializing database: $db_name"
+    
+    # Create database if it doesn't exist
+    $POSTGRES -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$db_name'" | grep -q 1 || \
+        $POSTGRES -d postgres -c "CREATE DATABASE $db_name"
+    
+    # Run the schema SQL if provided
+    if [ -n "$sql_content" ]; then
+        echo "   Applying schema to $db_name..."
+        $POSTGRES -d "$db_name" <<EOSQL
+$sql_content
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $POSTGRES_USER;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $POSTGRES_USER;
+EOSQL
+    fi
+}
+
+# --- Schema Definitions ---
+
+AUTH_SCHEMA=$(cat <<'EOF'
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+EOF
+)
+
+USER_SCHEMA=$(cat <<'EOF'
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    phone VARCHAR(20),
+    address TEXT,
+    city VARCHAR(50),
+    state VARCHAR(50),
+    country VARCHAR(50),
+    postal_code VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);
+EOF
+)
+
+PORTFOLIO_SCHEMA=$(cat <<'EOF'
+CREATE TABLE IF NOT EXISTS portfolio (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    units DECIMAL(18, 2) NOT NULL,
+    buy_price DECIMAL(18, 2) NOT NULL,
+    current_price DECIMAL(18, 2),
+    purchase_date DATE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_portfolio_user_id ON portfolio(user_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_type ON portfolio(type);
+EOF
+)
+
+NOTIFICATION_SCHEMA=$(cat <<'EOF'
+CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50),
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+EOF
+)
+
+# --- Execute Initialization ---
+for db in "auth_db" "user_db" "portfolio_db" "notification_db"; do
+    case $db in
+        auth_db)         init_service_db "$db" "$AUTH_SCHEMA" ;;
+        user_db)         init_service_db "$db" "$USER_SCHEMA" ;;
+        portfolio_db)    init_service_db "$db" "$PORTFOLIO_SCHEMA" ;;
+        notification_db) init_service_db "$db" "$NOTIFICATION_SCHEMA" ;;
+    esac
+done
+
+echo "✅ Database initialization completed successfully!"

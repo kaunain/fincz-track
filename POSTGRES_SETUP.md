@@ -141,7 +141,12 @@ Each service uses PostgreSQL with these environment variables:
 # Set these before running services
 export DB_USER=fincz_user
 export DB_PASS=fincz_password
-export DB_URL=jdbc:postgresql://localhost:5432/<service_db>
+
+# For Spring Boot (User, Portfolio, Notification)
+export DB_URL=jdbc:postgresql://localhost:5432/user_db
+
+# For Node.js/Express (Auth, Market)
+export DB_URL=postgresql://fincz_user:fincz_password@localhost:5432/auth_db
 ```
 
 ---
@@ -162,7 +167,7 @@ export DB_URL=jdbc:postgresql://localhost:5432/<service_db>
 4. **notification_db** - Notification and alerts
    - notifications table (title, message, is_read, etc.)
 
-See `scripts/init-db.sql` for complete schema.
+See `scripts/init-db.sh` for complete schema and initialization logic.
 
 ---
 
