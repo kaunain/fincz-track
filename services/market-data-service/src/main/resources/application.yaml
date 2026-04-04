@@ -1,5 +1,5 @@
 server:
-  port: 8084
+  port: ${SERVER_PORT:8084}
 
 spring:
   application:
@@ -7,12 +7,12 @@ spring:
   cache:
     type: simple
 
-# External API configurations (for demo, using mock data)
+# External API configurations
 market:
   api:
-    base-url: https://api.example.com
-    key: ${MARKET_API_KEY:demo_key}
+    base-url: ${MARKET_API_BASE_URL:https://api.example.com}
+    key: ${MARKET_API_KEY}
 
 # Cache configuration
 cache:
-  ttl: 300000  # 5 minutes in milliseconds
+  ttl: ${CACHE_TTL:300000}
