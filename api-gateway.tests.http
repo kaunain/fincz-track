@@ -1,0 +1,198 @@
+@gatewayBaseUrl = http://localhost:8080/api
+
+### API Gateway Tests
+
+### 1. Gateway Health Route (Auth Service via Gateway)
+# Check if the API Gateway is routing to Auth Service successfully.
+GET {{gatewayBaseUrl}}/auth/test
+
+###
+
+### 2. User Signup via Gateway
+# Register a new user through API Gateway.
+POST {{gatewayBaseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+    "name": "Test User",
+    "email": "test@fincz.com",
+    "password": "java@123"
+}
+
+###
+
+### 3. User Login via Gateway
+# Authenticate through API Gateway and store the JWT.
+# @name login
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "test@fincz.com",
+    "password": "java@123"
+}
+
+###
+
+@token = {{login.response.body.token}}
+
+### 3.1 Create User Profile via Gateway
+# Create a profile using the User Service through API Gateway.
+POST {{gatewayBaseUrl}}/users/profile
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "name": "Test User",
+    "email": "test@fincz.com",
+    "password": "dummy_password"
+}
+
+###
+
+### User Service via Gateway
+
+### 4. Get Current User (Gateway)
+GET {{gatewayBaseUrl}}/users/me
+Authorization: Bearer {{token}}
+
+###
+
+### 5. Update Current User (Gateway)
+PUT {{gatewayBaseUrl}}/users/me
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "name": "Updated User",
+    "phone": "+12345678901",
+    "age": 30,
+    "occupation": "Engineer",
+    "financialGoals": "Save for retirement"
+}
+
+###
+
+### 6. Get User by ID (Gateway)
+GET {{gatewayBaseUrl}}/users/1
+Authorization: Bearer {{token}}
+
+###
+
+### Portfolio Service via Gateway
+
+### 7. Add Investment (Gateway)
+POST {{gatewayBaseUrl}}/portfolio/add
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "type": "stock",
+    "name": "Tata Consultancy Services",
+    "symbol": "TCS.NS",
+    "units": 10,
+    "buyPrice": 3200.50
+}
+
+###
+
+### 8. Get Portfolio (Gateway)
+GET {{gatewayBaseUrl}}/portfolio
+Authorization: Bearer {{token}}
+
+###
+
+### 9. Get Net Worth (Gateway)
+GET {{gatewayBaseUrl}}/portfolio/networth
+Authorization: Bearer {{token}}
+
+###
+
+### 10. Add Mutual Fund Investment (Gateway)
+POST {{gatewayBaseUrl}}/portfolio/add
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "type": "mf",
+    "name": "HDFC Flexi Cap Fund",
+    "symbol": "HDFCFCF",
+    "units": 100,
+    "buyPrice": 150.75
+}
+
+###
+
+### 11. Get Stock Portfolio (Gateway)
+GET {{gatewayBaseUrl}}/portfolio/type/stock
+Authorization: Bearer {{token}}
+
+###
+
+### Market Data Service via Gateway
+
+### 12. Get Stock Price (Gateway)
+GET {{gatewayBaseUrl}}/market/price/TCS.NS
+
+###
+
+### 13. Get Mutual Fund Price (Gateway)
+GET {{gatewayBaseUrl}}/market/price/HDFCFCF
+
+###
+
+### Notification Service via Gateway
+
+### 14. Notification Service Health Check (Gateway)
+GET {{gatewayBaseUrl}}/notifications/test
+
+###
+
+### 15. Send Notification (Gateway)
+POST {{gatewayBaseUrl}}/notifications/send
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "toEmail": "test@fincz.com",
+  "subject": "Portfolio Update",
+  "message": "Your portfolio has been updated successfully!"
+}
+
+###
+
+### 16. Get User Notifications (Gateway)
+GET {{gatewayBaseUrl}}/notifications
+Authorization: Bearer {{token}}
+
+###
+
+### 17. Trigger Tax Reminder (Gateway)
+POST {{gatewayBaseUrl}}/notifications/tax-reminder
+Authorization: Bearer {{token}}
+
+###
+
+### 18. Trigger Portfolio Alert (Gateway)
+POST {{gatewayBaseUrl}}/notifications/portfolio-alert
+Authorization: Bearer {{token}}
+
+###
+
+### Additional Portfolio Tests via Gateway
+
+### 19. Get Mutual Fund Portfolio (Gateway)
+GET {{gatewayBaseUrl}}/portfolio/type/mf
+Authorization: Bearer {{token}}
+
+###
+
+### Additional Market Data Tests via Gateway
+
+### 20. Get Stock Price for Different Symbol (Gateway)
+GET {{gatewayBaseUrl}}/market/price/INFY.NS
+
+###
+
+### 21. Get Mutual Fund Price for Different Fund (Gateway)
+GET {{gatewayBaseUrl}}/market/price/SBIBCF
