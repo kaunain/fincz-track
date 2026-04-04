@@ -44,7 +44,8 @@ if [ "$SERVICE" = "stop" ]; then
 
     echo "✅ All services stopped successfully"
     exit 0
-fi
+
+elif [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway" ] || [ "$SERVICE" = "portfolio" ] || [ "$SERVICE" = "market" ] || [ "$SERVICE" = "notification" ]; then
     if [ "$SERVICE" = "auth" ]; then
         export DB_URL=${DB_URL:-"jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"}
         SERVICE_NAME="Auth Service"
