@@ -149,3 +149,48 @@ GET {{marketBaseUrl}}/market/price/TCS.NS
 ### 13. Get Mutual Fund Price (Market Data Service)
 # Get current price for HDFC Flexi Cap Fund
 GET {{marketBaseUrl}}/market/price/HDFCFCF
+
+###
+
+### Notification Service Tests
+
+@notificationBaseUrl = http://localhost:8085
+
+### 14. Notification Service Health Check
+# Check if Notification Service is running
+GET {{notificationBaseUrl}}/notifications/test
+
+###
+
+### 15. Send Notification (Notification Service)
+# Send a test notification
+POST {{notificationBaseUrl}}/notifications/send
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "toEmail": "test@fincz.com",
+  "subject": "Portfolio Update",
+  "message": "Your portfolio has been updated successfully!"
+}
+
+###
+
+### 16. Get User Notifications (Notification Service)
+# Get notification history for authenticated user
+GET {{notificationBaseUrl}}/notifications
+Authorization: Bearer {{token}}
+
+###
+
+### 17. Trigger Tax Reminder (Notification Service)
+# Manually trigger tax reminder check
+POST {{notificationBaseUrl}}/notifications/tax-reminder
+Authorization: Bearer {{token}}
+
+###
+
+### 18. Trigger Portfolio Alert (Notification Service)
+# Manually trigger portfolio alert check
+POST {{notificationBaseUrl}}/notifications/portfolio-alert
+Authorization: Bearer {{token}}
