@@ -65,6 +65,16 @@ public class UserService {
         return mapToResponse(user);
     }
 
+    /**
+     * Retrieves a user profile by email.
+     */
+    public UserResponse getProfile(String email) {
+        User user = repo.findByEmail(email)
+                .orElseThrow(() -> new UserException("User profile not found"));
+
+        return mapToResponse(user);
+    }
+
     private UserResponse mapToResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());

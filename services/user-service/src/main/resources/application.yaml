@@ -5,9 +5,9 @@ spring:
   application:
     name: user-service
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USER}
-    password: ${DB_PASS}
+    url: ${DB_URL:jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1}
+    username: ${DB_USER:sa}
+    password: ${DB_PASS:}
     driver-class-name: org.h2.Driver
   jpa:
     hibernate:
@@ -18,5 +18,5 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
 
 jwt:
-  secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
+  secret: ${JWT_SECRET:mysecretkey123456789012345678901}
+  expiration: ${JWT_EXPIRATION:3600000}
