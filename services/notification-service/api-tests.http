@@ -1,0 +1,31 @@
+# Fincz-Track Notification Service API Tests
+# Author: Kaunain Ahmad
+# Created: April 2026
+
+@baseUrl = http://localhost:8080/api
+
+### Health Check (No Auth Required)
+GET {{baseUrl}}/notifications/test
+
+### Send Notification (Requires Auth)
+POST {{baseUrl}}/notifications/send
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "toEmail": "user@example.com",
+  "subject": "Test Notification",
+  "message": "This is a test notification from Fincz-Track"
+}
+
+### Get User Notifications (Requires Auth)
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{authToken}}
+
+### Trigger Tax Reminder Check (Requires Auth)
+POST {{baseUrl}}/notifications/tax-reminder
+Authorization: Bearer {{authToken}}
+
+### Trigger Portfolio Alert Check (Requires Auth)
+POST {{baseUrl}}/notifications/portfolio-alert
+Authorization: Bearer {{authToken}}

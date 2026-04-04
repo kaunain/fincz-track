@@ -1,6 +1,7 @@
 package com.fincz.gateway.config;
 
 import com.fincz.gateway.security.JwtAuthenticationFilter;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.stereotype.Component;
 

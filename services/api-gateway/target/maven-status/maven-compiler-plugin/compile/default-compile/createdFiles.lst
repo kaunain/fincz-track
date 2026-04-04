@@ -1,0 +1,3 @@
+com/fincz/gateway/config/JwtAuthenticationGatewayFilterFactory.class
+com/fincz/gateway/security/JwtAuthenticationFilter.class
+com/fincz/gateway/ApiGatewayApplication.class
