@@ -1,5 +1,6 @@
 package com.fincz.user.controller;
 
+import com.fincz.user.dto.SignupRequest;
 import com.fincz.user.dto.UserResponse;
 import com.fincz.user.dto.UserUpdateRequest;
 import com.fincz.user.service.UserService;
@@ -21,6 +22,15 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService service;
+
+    /**
+     * Creates a new user profile (for testing purposes).
+     * In production, this would be handled through service-to-service communication.
+     */
+    @PostMapping("/profile")
+    public ResponseEntity<UserResponse> createProfile(@Valid @RequestBody SignupRequest request) {
+        return ResponseEntity.ok(service.createProfile(request.getEmail(), request.getName()));
+    }
 
     /**
      * Retrieves the profile of the currently authenticated user.
