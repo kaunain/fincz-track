@@ -3,7 +3,22 @@
 # Project: Fincz-Track
 # Author: Kaunain Ahmad
 # Created: April 2026
-# Description: Unified script to run auth-service, user-service, or both.
+# Description: Unified script to run microservices with PostgreSQL via Docker
+
+set -e
+
+# 📁 Load environment from .env file if it exists
+if [ -f ".env" ]; then
+    echo "📂 Loading environment from .env file..."
+    set -a
+    source .env
+    set +a
+else
+    echo "⚠️  No .env file found. Using .env.example as template."
+    echo "   Run: cp .env.example .env"
+    echo "   Then: Update values in .env file"
+    echo ""
+fi
 
 # Check if service name is provided
 if [ $# -eq 0 ]; then
@@ -16,18 +31,46 @@ fi
 
 SERVICE=$1
 
-# 🔐 Security: Define your Secret Keys here
-# For production, these should be in CI/CD or your secret manager and MUST be same for both services.
-if [ -z "$JWT_SECRET" ]; then
-  JWT_SECRET="$(openssl rand -base64 32)"
-  echo "Warning: JWT_SECRET not set. Using temporary random secret (not for production)."
-fi
-export JWT_SECRET
-export JWT_EXPIRATION=${JWT_EXPIRATION:-86400000} # 24 Hours
+# ==========================================
+# VALIDATE REQUIRED ENVIRONMENT VARIABLES
+# ==========================================
 
-# 🗄️ Database Configuration defaults.
-export DB_USER=${DB_USER:-"sa"}
-export DB_PASS=${DB_PASS:-""}
+function check_required_env() {
+    local var_name=$1
+    local var_value=${!var_name}
+    
+    if [ -z "$var_value" ]; then
+        echo "❌ ERROR: Required environment variable '$var_name' is not set!"
+        echo "   Please check your .env file or set it manually."
+        return 1
+    fi
+    return 0
+}
+
+# 🔐 Validate JWT configuration (required for all services)
+if [ "$SERVICE" != "stop" ]; then
+    if ! check_required_env "JWT_SECRET"; then
+        echo "   Hint: Generate with: python3 -c \"import base64, os; print(base64.b64encode(os.urandom(32)).decode())\""
+        exit 1
+    fi
+    check_required_env "JWT_EXPIRATION" || export JWT_EXPIRATION="86400000"
+fi
+
+# 🗄️ Validate Database configuration (required for database services)
+case "$SERVICE" in
+    auth|user|portfolio|notification|all)
+        check_required_env "DB_URL" || exit 1
+        check_required_env "DB_USER" || exit 1
+        check_required_env "DB_PASS" || exit 1
+        ;;
+esac
+
+# Set defaults for optional variables
+export DB_POOL_SIZE=${DB_POOL_SIZE:-10}
+export DB_CONNECTION_TIMEOUT=${DB_CONNECTION_TIMEOUT:-20000}
+export DB_MAX_IDLE_TIME=${DB_MAX_IDLE_TIME:-600000}
+export JPA_HIBERNATE_DDL_AUTO=${JPA_HIBERNATE_DDL_AUTO:-update}
+export JPA_SHOW_SQL=${JPA_SHOW_SQL:-false}
 
 if [ "$SERVICE" = "stop" ]; then
     echo "------------------------------------------------"
