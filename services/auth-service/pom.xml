@@ -124,7 +124,6 @@
 				<showDeprecation>true</showDeprecation>
 				<failOnWarning>false</failOnWarning>
 				<compilerArgs>
-					<arg>-Xlint:unused</arg>
 					<arg>-Xlint:unchecked</arg>
 				</compilerArgs>					<annotationProcessorPaths>
 						<path>
