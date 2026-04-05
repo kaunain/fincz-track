@@ -29,7 +29,7 @@ apiClient.interceptors.response.use(
 );
 
 export const authAPI = {
-  signup: (email, password) => apiClient.post('/auth/signup', { email, password }),
+  signup: (name, email, password) => apiClient.post('/auth/signup', { name, email, password }),
   login: (email, password) => apiClient.post('/auth/login', { email, password }),
 };
 
