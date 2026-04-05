@@ -8,6 +8,7 @@ const AuthPage = () => {
   const location = useLocation();
   const { login } = useAuth();
   const [isSignup, setIsSignup] = useState(location.state?.isSignup || false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -26,8 +27,9 @@ const AuthPage = () => {
           setLoading(false);
           return;
         }
-        await authAPI.signup(email, password);
+        await authAPI.signup(name, email, password);
         setIsSignup(false);
+        setName('');
         setPassword('');
         setConfirmPassword('');
         setEmail('');
@@ -62,6 +64,22 @@ const AuthPage = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignup && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
+                placeholder="John Doe"
+                required={isSignup}
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email Address
