@@ -5,8 +5,7 @@ import com.fincz.notification.dto.SendNotificationRequest;
 import com.fincz.notification.service.NotificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -22,9 +21,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/notifications")
 @RequiredArgsConstructor
+@Slf4j
 public class NotificationController {
 
-    private static final Logger logger = LoggerFactory.getLogger(NotificationController.class);
 
     private final NotificationService service;
 
@@ -33,14 +32,14 @@ public class NotificationController {
      */
     @PostMapping("/send")
     public ResponseEntity<NotificationResponse> sendNotification(@Valid @RequestBody SendNotificationRequest request) {
-        logger.info("Sending notification to user: {} with type: {}", request.getUserEmail(), request.getType());
+        log.info("Sending notification to user: {} with type: {}", request.getUserEmail(), request.getType());
 
         try {
             NotificationResponse response = service.sendNotification(request);
-            logger.info("Successfully sent notification to user {}: id={}", request.getUserEmail(), response.getId());
+            log.info("Successfully sent notification to user {}: id={}", request.getUserEmail(), response.getId());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Failed to send notification to user {}: {}", request.getUserEmail(), e.getMessage(), e);
+            log.error("Failed to send notification to user {}: {}", request.getUserEmail(), e.getMessage(), e);
             throw e;
         }
     }
@@ -50,14 +49,14 @@ public class NotificationController {
      */
     @GetMapping
     public ResponseEntity<List<NotificationResponse>> getUserNotifications(@AuthenticationPrincipal String userEmail) {
-        logger.debug("Retrieving notifications for user: {}", userEmail);
+        log.debug("Retrieving notifications for user: {}", userEmail);
 
         try {
             List<NotificationResponse> notifications = service.getUserNotifications(userEmail);
-            logger.info("Retrieved {} notifications for user {}", notifications.size(), userEmail);
+            log.info("Retrieved {} notifications for user {}", notifications.size(), userEmail);
             return ResponseEntity.ok(notifications);
         } catch (Exception e) {
-            logger.error("Failed to retrieve notifications for user {}: {}", userEmail, e.getMessage(), e);
+            log.error("Failed to retrieve notifications for user {}: {}", userEmail, e.getMessage(), e);
             throw e;
         }
     }
@@ -67,14 +66,14 @@ public class NotificationController {
      */
     @PostMapping("/tax-reminder")
     public ResponseEntity<String> triggerTaxReminder() {
-        logger.info("Manually triggering tax reminder check");
+        log.info("Manually triggering tax reminder check");
 
         try {
             service.sendTaxReminders();
-            logger.info("Tax reminder check completed successfully");
+            log.info("Tax reminder check completed successfully");
             return ResponseEntity.ok("Tax reminder check triggered");
         } catch (Exception e) {
-            logger.error("Failed to trigger tax reminder check: {}", e.getMessage(), e);
+            log.error("Failed to trigger tax reminder check: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -84,14 +83,14 @@ public class NotificationController {
      */
     @PostMapping("/portfolio-alert")
     public ResponseEntity<String> triggerPortfolioAlert() {
-        logger.info("Manually triggering portfolio alert check");
+        log.info("Manually triggering portfolio alert check");
 
         try {
             service.sendPortfolioAlerts();
-            logger.info("Portfolio alert check completed successfully");
+            log.info("Portfolio alert check completed successfully");
             return ResponseEntity.ok("Portfolio alert check triggered");
         } catch (Exception e) {
-            logger.error("Failed to trigger portfolio alert check: {}", e.getMessage(), e);
+            log.error("Failed to trigger portfolio alert check: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -101,9 +100,9 @@ public class NotificationController {
      */
     @GetMapping("/test")
     public ResponseEntity<String> test() {
-        logger.debug("Health check request received");
+        log.debug("Health check request received");
         String response = "Notification Service is running!";
-        logger.debug("Health check response: {}", response);
+        log.debug("Health check response: {}", response);
         return ResponseEntity.ok(response);
     }
 }
