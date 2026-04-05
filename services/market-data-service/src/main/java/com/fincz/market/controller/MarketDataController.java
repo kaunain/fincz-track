@@ -3,6 +3,8 @@ package com.fincz.market.controller;
 import com.fincz.market.dto.StockPriceResponse;
 import com.fincz.market.service.MarketDataService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class MarketDataController {
 
+    private static final Logger logger = LoggerFactory.getLogger(MarketDataController.class);
+
     private final MarketDataService service;
 
     /**
@@ -27,8 +31,16 @@ public class MarketDataController {
      */
     @GetMapping("/price/{symbol}")
     public ResponseEntity<StockPriceResponse> getStockPrice(@PathVariable String symbol) {
-        StockPriceResponse price = service.getStockPrice(symbol);
-        return ResponseEntity.ok(price);
+        logger.debug("Requesting stock price for symbol: {}", symbol);
+
+        try {
+            StockPriceResponse price = service.getStockPrice(symbol);
+            logger.info("Retrieved stock price for {}: ${}", symbol, price.getPrice());
+            return ResponseEntity.ok(price);
+        } catch (Exception e) {
+            logger.error("Failed to retrieve stock price for symbol {}: {}", symbol, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -36,6 +48,9 @@ public class MarketDataController {
      */
     @GetMapping("/test")
     public ResponseEntity<String> test() {
-        return ResponseEntity.ok("Market Data Service is running!");
+        logger.debug("Health check request received");
+        String response = "Market Data Service is running!";
+        logger.debug("Health check response: {}", response);
+        return ResponseEntity.ok(response);
     }
 }
