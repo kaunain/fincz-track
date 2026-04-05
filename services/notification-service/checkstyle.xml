@@ -31,7 +31,6 @@
     <module name="TreeWalker">
         <!-- Checks for Javadoc comments -->
         <module name="JavadocMethod">
-            <property name="scope" value="public"/>
             <property name="allowMissingParamTags" value="true"/>
             <property name="allowMissingReturnTag" value="true"/>
         </module>

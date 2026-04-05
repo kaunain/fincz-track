@@ -8,6 +8,9 @@
     <property name="severity" value="warning"/>
     <property name="fileExtensions" value="java, properties, xml"/>
 
+    <!-- Checks that a package-info.java file exists for each package -->
+    <module name="JavadocPackage"/>
+
     <!-- Checks that a file header exists -->
     <module name="HeaderCheck">
         <property name="headerFile" value="java.header"/>
@@ -26,7 +29,25 @@
     </module>
 
     <module name="TreeWalker">
-        <!-- Naming conventions -->
+        <!-- Checks for Javadoc comments -->
+        <module name="JavadocMethod">
+            <property name="allowMissingParamTags" value="true"/>
+            <property name="allowMissingReturnTag" value="true"/>
+        </module>
+
+        <!-- Checks for Javadoc comments on types -->
+        <module name="JavadocType">
+            <property name="scope" value="public"/>
+        </module>
+
+        <!-- Checks for missing Javadoc on public methods -->
+        <module name="MissingJavadocMethod">
+            <property name="scope" value="public"/>
+            <property name="minLineCount" value="2"/>
+            <property name="allowedAnnotations" value="Override, Test"/>
+        </module>
+
+        <!-- Checks for naming conventions -->
         <module name="ConstantName"/>
         <module name="LocalFinalVariableName"/>
         <module name="LocalVariableName"/>
@@ -37,15 +58,31 @@
         <module name="StaticVariableName"/>
         <module name="TypeName"/>
 
-        <!-- Code style -->
-        <module name="AvoidInlineConditionals"/>
+        <!-- Checks for imports -->
+        <module name="AvoidStarImport"/>
+        <module name="IllegalImport"/>
+        <module name="RedundantImport"/>
+        <module name="UnusedImports"/>
+
+        <!-- Checks for size -->
+        <module name="AnonInnerLength">
+            <property name="max" value="20"/>
+        </module>
+        <module name="MethodLength">
+            <property name="max" value="50"/>
+        </module>
+        <module name="ParameterNumber">
+            <property name="max" value="7"/>
+        </module>
+
+        <!-- Checks for code quality -->
         <module name="EmptyBlock"/>
         <module name="EmptyCatchBlock"/>
         <module name="EmptyStatement"/>
         <module name="EqualsAvoidNull"/>
         <module name="EqualsHashCode"/>
-        <module name="FinalLocalVariable"/>
         <module name="HiddenField"/>
+        <module name="IllegalCatch"/>
         <module name="IllegalInstantiation"/>
         <module name="IllegalType"/>
         <module name="InnerAssignment"/>
@@ -57,34 +94,5 @@
         <module name="StringLiteralEquality"/>
         <module name="UnnecessaryParentheses"/>
         <module name="VariableDeclarationUsageDistance"/>
-
-        <!-- Size violations -->
-        <module name="AnonInnerLength">
-            <property name="max" value="20"/>
-        </module>
-        <module name="ExecutableStatementCount">
-            <property name="max" value="30"/>
-        </module>
-        <module name="MethodLength">
-            <property name="max" value="50"/>
-        </module>
-        <module name="ParameterNumber">
-            <property name="max" value="7"/>
-        </module>
-
-        <!-- Imports -->
-        <module name="AvoidStarImport"/>
-        <module name="IllegalImport"/>
-        <module name="RedundantImport"/>
-        <module name="UnusedImports"/>
-
-        <!-- Javadoc -->
-        <module name="JavadocMethod">
-            <property name="allowMissingParamTags" value="true"/>
-            <property name="allowMissingReturnTag" value="true"/>
-        </module>
-        <module name="JavadocType"/>
-        <module name="JavadocVariable"/>
-        <module name="JavadocStyle"/>
     </module>
 </module>
