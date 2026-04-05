@@ -61,8 +61,8 @@ const Dashboard = () => {
   })) : [];
 
   const totalValue = chartData.reduce((sum, item) => sum + item.value, 0);
-  const profitLoss = netWorth ? netWorth.profit_loss || 0 : 0;
-  const profitPercentage = totalValue > 0 ? ((profitLoss / totalValue) * 100).toFixed(2) : 0;
+  const profitLoss = netWorth ? parseFloat(netWorth.totalPnl || 0) : 0;
+  const profitPercentage = netWorth ? parseFloat(netWorth.pnlPercentage || 0) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
