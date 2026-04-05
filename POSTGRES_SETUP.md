@@ -225,6 +225,27 @@ Connection details:
 - Password: fincz_password
 - Database: fincz_db
 
+### 3. Using Adminer (Browser Based)
+
+Adminer is restricted to **Development Mode** only. To use it, you must explicitly start it:
+
+```bash
+# Start Adminer
+./manage-postgres.sh ui-start
+
+# Stop Adminer when finished
+./manage-postgres.sh ui-stop
+```
+
+Once started, access it at: [http://localhost:8088](http://localhost:8088)
+
+**Login Details:**
+- **System**: PostgreSQL
+- **Server**: `postgres` (This is the Docker service name)
+- **Username**: `fincz_dbo` (or your configured `POSTGRES_USER`)
+- **Password**: `fincz_dbo`
+- **Database**: `auth_db` (or any of the service databases)
+
 ### 3. Using Java/Spring Boot
 
 Services automatically connect and initialize schema via Spring Data JPA with `ddl-auto: update`
