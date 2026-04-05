@@ -11,9 +11,10 @@ const AddInvestment = () => {
   
   const [formData, setFormData] = useState({
     name: '',
+    symbol: '',
     type: 'stock',
     units: '',
-    buy_price: '',
+    buyPrice: '',
   });
 
   const handleChange = (e) => {
@@ -32,9 +33,11 @@ const AddInvestment = () => {
 
     try {
       const payload = {
-        ...formData,
+        name: formData.name,
+        symbol: formData.symbol,
+        type: formData.type,
         units: parseFloat(formData.units),
-        buy_price: parseFloat(formData.buy_price),
+        buyPrice: parseFloat(formData.buyPrice),
       };
 
       await portfolioAPI.addInvestment(payload);
@@ -42,16 +45,32 @@ const AddInvestment = () => {
       
       setFormData({
         name: '',
+        symbol: '',
         type: 'stock',
         units: '',
-        buy_price: '',
+        buyPrice: '',
       });
 
       setTimeout(() => {
         navigate('/dashboard');
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add investment. Please try again.');
+      console.error('Add investment error:', err);
+      let errorMessage = 'Failed to add investment. Please try again.';
+      
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -89,6 +108,21 @@ const AddInvestment = () => {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="e.g., TCS, SBI, Axis Bank"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Stock Symbol/Code
+              </label>
+              <input
+                type="text"
+                name="symbol"
+                value={formData.symbol}
+                onChange={handleChange}
+                placeholder="e.g., TCS.NS, SBIN.NS, AXISBANK.NS"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
                 required
               />
@@ -136,8 +170,8 @@ const AddInvestment = () => {
                 </label>
                 <input
                   type="number"
-                  name="buy_price"
-                  value={formData.buy_price}
+                  name="buyPrice"
+                  value={formData.buyPrice}
                   onChange={handleChange}
                   placeholder="e.g., 1500.50"
                   step="0.01"
@@ -151,7 +185,7 @@ const AddInvestment = () => {
               <p className="text-sm text-gray-700">
                 <strong>Total Investment:</strong> ₹
                 {(
-                  parseFloat(formData.units || 0) * parseFloat(formData.buy_price || 0)
+                  parseFloat(formData.units || 0) * parseFloat(formData.buyPrice || 0)
                 ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
               </p>
             </div>

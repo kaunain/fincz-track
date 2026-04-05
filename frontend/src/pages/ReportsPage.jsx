@@ -18,7 +18,22 @@ const ReportsPage = () => {
       const response = await portfolioAPI.getPortfolio();
       setPortfolio(response.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load reports');
+      console.error('Reports data error:', err);
+      let errorMessage = 'Failed to load reports';
+      
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -34,9 +49,9 @@ const ReportsPage = () => {
 
   const chartData = portfolio ? portfolio.map(item => ({
     name: item.name,
-    investment: item.buy_price,
-    units: item.units,
-    total: item.units * item.buy_price,
+    investment: parseFloat(item.buyPrice),
+    units: parseFloat(item.units),
+    total: parseFloat(item.units) * parseFloat(item.buyPrice),
   })) : [];
 
   const investmentByType = portfolio
@@ -46,7 +61,7 @@ const ReportsPage = () => {
           acc[item.type] = { type: item.type, count: 0, value: 0 };
         }
         acc[item.type].count += 1;
-        acc[item.type].value += item.units * item.buy_price;
+        acc[item.type].value += parseFloat(item.units) * parseFloat(item.buyPrice);
         return acc;
       }, {})
     )
@@ -75,7 +90,7 @@ const ReportsPage = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-gray-600 text-sm">Total Value</p>
             <p className="text-3xl font-bold text-primary">
-              ₹{(portfolio?.reduce((sum, item) => sum + (item.units * item.buy_price), 0) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+              ₹{(portfolio?.reduce((sum, item) => sum + (parseFloat(item.units) * parseFloat(item.buyPrice)), 0) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
             </p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
@@ -155,12 +170,12 @@ const ReportsPage = () => {
                     <tr key={index} className="border-b hover:bg-gray-50">
                       <td className="px-6 py-3">{item.name}</td>
                       <td className="px-6 py-3 capitalize">{item.type}</td>
-                      <td className="px-6 py-3 text-right">{item.units}</td>
+                      <td className="px-6 py-3 text-right">{parseFloat(item.units).toLocaleString()}</td>
                       <td className="px-6 py-3 text-right">
-                        ₹{parseFloat(item.buy_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        ₹{parseFloat(item.buyPrice).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                       </td>
                       <td className="px-6 py-3 text-right font-semibold">
-                        ₹{(item.units * item.buy_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        ₹{(parseFloat(item.units) * parseFloat(item.buyPrice)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
