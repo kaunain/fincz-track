@@ -4,6 +4,7 @@ import com.fincz.notification.dto.NotificationResponse;
 import com.fincz.notification.dto.SendNotificationRequest;
 import com.fincz.notification.entity.Notification;
 import com.fincz.notification.repository.NotificationRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Scheduled;
