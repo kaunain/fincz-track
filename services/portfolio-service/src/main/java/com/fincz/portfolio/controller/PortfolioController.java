@@ -94,7 +94,7 @@ public class PortfolioController {
 
         try {
             NetWorthResponse netWorth = service.getNetWorth(userEmail);
-            logger.info("Calculated net worth for user {}: ${}", userEmail, netWorth.getTotalValue());
+            logger.info("Calculated net worth for user {}: ${}", userEmail, netWorth.getCurrentValue());
             return ResponseEntity.ok(netWorth);
         } catch (Exception e) {
             logger.error("Failed to calculate net worth for user {}: {}", userEmail, e.getMessage(), e);
