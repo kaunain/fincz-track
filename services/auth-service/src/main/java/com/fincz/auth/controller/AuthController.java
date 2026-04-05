@@ -6,6 +6,8 @@ import com.fincz.auth.dto.SignupRequest;
 import com.fincz.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final AuthService service;
 
     /**
@@ -30,8 +33,15 @@ public class AuthController {
      */
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest req) {
-        service.signup(req);
-        return ResponseEntity.ok("User registered");
+        logger.info("User signup attempt for email: {}", req.getEmail());
+        try {
+            service.signup(req);
+            logger.info("User successfully registered with email: {}", req.getEmail());
+            return ResponseEntity.ok("User registered");
+        } catch (Exception e) {
+            logger.error("Failed to register user with email: {}", req.getEmail(), e);
+            throw e;
+        }
     }
 
     /**
@@ -39,7 +49,14 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest req) {
-        String token = service.login(req);
-        return ResponseEntity.ok(new AuthResponse(token));
+        logger.info("User login attempt for email: {}", req.getEmail());
+        try {
+            String token = service.login(req);
+            logger.info("User successfully logged in with email: {}", req.getEmail());
+            return ResponseEntity.ok(new AuthResponse(token));
+        } catch (Exception e) {
+            logger.warn("Failed login attempt for email: {}", req.getEmail(), e);
+            throw e;
+        }
     }
 }
