@@ -36,8 +36,10 @@ EOSQL
 AUTH_SCHEMA=$(cat <<'EOF'
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'ROLE_USER',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -53,6 +55,9 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     first_name VARCHAR(100),
     last_name VARCHAR(100),
     phone VARCHAR(20),
+    age INTEGER,
+    occupation VARCHAR(100),
+    financial_goals TEXT,
     address TEXT,
     city VARCHAR(50),
     state VARCHAR(50),

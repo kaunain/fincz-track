@@ -27,4 +27,10 @@ public class User {
     private String password;
 
     private String role;
+
+    @Column(name = "created_at")
+    private java.time.LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private java.time.LocalDateTime updatedAt;
 }
