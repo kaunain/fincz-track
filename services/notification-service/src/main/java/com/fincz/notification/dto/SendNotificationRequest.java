@@ -28,36 +28,13 @@ public class SendNotificationRequest {
     @NotBlank(message = "Message is required")
     private String message;
 
-    // Explicit getters and setters as backup for Lombok processing issues
-    public String getUserEmail() {
-        return userEmail;
-    }
-
-    public void setUserEmail(String userEmail) {
-        this.userEmail = userEmail;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public String getSubject() {
-        return subject;
-    }
-
-    public void setSubject(String subject) {
-        this.subject = subject;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
+    // Getters and setters
+    public String getUserEmail() { return userEmail; }
+    public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+    public String getSubject() { return subject; }
+    public void setSubject(String subject) { this.subject = subject; }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 }

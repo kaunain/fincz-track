@@ -6,6 +6,8 @@ import com.fincz.notification.entity.Notification;
 import com.fincz.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -22,12 +24,18 @@ import java.util.stream.Collectors;
  * Service for handling notifications and email alerts.
  */
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class NotificationService {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final NotificationRepository repository;
     private final JavaMailSender mailSender;
+
+    // Explicit constructor
+    public NotificationService(NotificationRepository repository, JavaMailSender mailSender) {
+        this.repository = repository;
+        this.mailSender = mailSender;
+    }
 
     /**
      * Sends a notification email to a user.

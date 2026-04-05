@@ -3,6 +3,8 @@ package com.fincz.notification.job;
 import com.fincz.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -13,11 +15,16 @@ import org.springframework.stereotype.Component;
  * Scheduled job for sending tax filing reminders.
  */
 @Component
-@RequiredArgsConstructor
-@Slf4j
 public class TaxReminderJob {
 
+    private static final Logger log = LoggerFactory.getLogger(TaxReminderJob.class);
+
     private final NotificationService notificationService;
+
+    // Explicit constructor
+    public TaxReminderJob(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
 
     /**
      * Runs every day at 9 AM to check for tax filing reminders.

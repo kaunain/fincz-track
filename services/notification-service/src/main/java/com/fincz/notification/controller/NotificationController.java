@@ -19,10 +19,14 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/notifications")
-@RequiredArgsConstructor
 public class NotificationController {
 
     private final NotificationService service;
+
+    // Explicit constructor
+    public NotificationController(NotificationService service) {
+        this.service = service;
+    }
 
     /**
      * Sends a notification to a user.

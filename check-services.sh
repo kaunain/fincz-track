@@ -28,8 +28,8 @@ echo "---------------"
 for service in "${SERVICES[@]}"; do
     IFS=':' read -r port name url <<< "$service"
 
-    # Check if port is listening
-    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+    # Check if port is listening using ss
+    if ss -tln | grep -q ":$port "; then
         if [ -z "$url" ]; then
             # For services without HTTP endpoint (like PostgreSQL), port open means running
             echo "✅ $name (Port $port): RUNNING"
