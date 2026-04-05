@@ -6,6 +6,8 @@ import com.fincz.user.dto.UserUpdateRequest;
 import com.fincz.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserController {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
     private final UserService service;
 
     /**
@@ -29,7 +32,15 @@ public class UserController {
      */
     @PostMapping("/profile")
     public ResponseEntity<UserResponse> createProfile(@Valid @RequestBody SignupRequest request) {
-        return ResponseEntity.ok(service.createProfile(request.getEmail(), request.getName()));
+        logger.info("Creating user profile for email: {}", request.getEmail());
+        try {
+            UserResponse response = service.createProfile(request.getEmail(), request.getName());
+            logger.info("User profile created successfully for email: {}", request.getEmail());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Failed to create user profile for email: {}", request.getEmail(), e);
+            throw e;
+        }
     }
 
     /**
@@ -37,7 +48,15 @@ public class UserController {
      */
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getProfile(@AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(service.getProfile(email));
+        logger.debug("Retrieving profile for authenticated user: {}", email);
+        try {
+            UserResponse response = service.getProfile(email);
+            logger.debug("Profile retrieved successfully for user: {}", email);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Failed to retrieve profile for user: {}", email, e);
+            throw e;
+        }
     }
 
     /**
@@ -47,7 +66,15 @@ public class UserController {
     public ResponseEntity<UserResponse> updateProfile(
             @AuthenticationPrincipal String email,
             @Valid @RequestBody UserUpdateRequest request) {
-        return ResponseEntity.ok(service.updateProfile(email, request));
+        logger.info("Updating profile for user: {}", email);
+        try {
+            UserResponse response = service.updateProfile(email, request);
+            logger.info("Profile updated successfully for user: {}", email);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Failed to update profile for user: {}", email, e);
+            throw e;
+        }
     }
 
     /**
@@ -55,7 +82,15 @@ public class UserController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
+        logger.debug("Retrieving user profile by ID: {}", id);
+        try {
+            UserResponse response = service.getById(id);
+            logger.debug("User profile retrieved successfully for ID: {}", id);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Failed to retrieve user profile for ID: {}", id, e);
+            throw e;
+        }
     }
 
     /**
@@ -63,6 +98,7 @@ public class UserController {
      */
     @GetMapping("/test")
     public ResponseEntity<String> test() {
+        logger.debug("Health check endpoint called");
         return ResponseEntity.ok("User Service is running!");
     }
 }
