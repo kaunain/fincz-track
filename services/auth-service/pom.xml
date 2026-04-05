@@ -118,8 +118,15 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<annotationProcessorPaths>
+				<configuration>				<source>17</source>
+				<target>17</target>
+				<showWarnings>true</showWarnings>
+				<showDeprecation>true</showDeprecation>
+				<failOnWarning>false</failOnWarning>
+				<compilerArgs>
+					<arg>-Xlint:unused</arg>
+					<arg>-Xlint:unchecked</arg>
+				</compilerArgs>					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
