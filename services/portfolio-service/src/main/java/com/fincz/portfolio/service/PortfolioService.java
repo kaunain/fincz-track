@@ -6,6 +6,8 @@ import com.fincz.portfolio.dto.PortfolioResponse;
 import com.fincz.portfolio.entity.Portfolio;
 import com.fincz.portfolio.repository.PortfolioRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PortfolioService {
 
+    private static final Logger logger = LoggerFactory.getLogger(PortfolioService.class);
+
     private final PortfolioRepository repository;
 
     /**
@@ -31,62 +35,103 @@ public class PortfolioService {
      */
     @Transactional
     public PortfolioResponse addInvestment(String userEmail, AddInvestmentRequest request) {
-        Portfolio portfolio = new Portfolio();
-        portfolio.setUserEmail(userEmail);
-        portfolio.setType(request.getType());
-        portfolio.setName(request.getName());
-        portfolio.setSymbol(request.getSymbol());
-        portfolio.setUnits(request.getUnits());
-        portfolio.setBuyPrice(request.getBuyPrice());
+        logger.info("Adding investment for user {}: symbol={}, units={}, buyPrice={}",
+                   userEmail, request.getSymbol(), request.getUnits(), request.getBuyPrice());
 
-        // For now, set current price same as buy price
-        // In real implementation, this would come from market data service
-        portfolio.setCurrentPrice(request.getBuyPrice());
+        try {
+            Portfolio portfolio = new Portfolio();
+            portfolio.setUserEmail(userEmail);
+            portfolio.setType(request.getType());
+            portfolio.setName(request.getName());
+            portfolio.setSymbol(request.getSymbol());
+            portfolio.setUnits(request.getUnits());
+            portfolio.setBuyPrice(request.getBuyPrice());
 
-        Portfolio saved = repository.save(portfolio);
-        return mapToResponse(saved);
+            // For now, set current price same as buy price
+            // In real implementation, this would come from market data service
+            portfolio.setCurrentPrice(request.getBuyPrice());
+
+            Portfolio saved = repository.save(portfolio);
+            logger.info("Successfully saved investment for user {}: id={}", userEmail, saved.getId());
+            return mapToResponse(saved);
+        } catch (Exception e) {
+            logger.error("Failed to add investment for user {}: {}", userEmail, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
      * Gets user's complete portfolio.
      */
     public List<PortfolioResponse> getPortfolio(String userEmail) {
-        return repository.findByUserEmail(userEmail)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        logger.debug("Retrieving complete portfolio for user: {}", userEmail);
+
+        try {
+            List<PortfolioResponse> portfolio = repository.findByUserEmail(userEmail)
+                    .stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+
+            logger.info("Retrieved {} portfolio items for user {}", portfolio.size(), userEmail);
+            return portfolio;
+        } catch (Exception e) {
+            logger.error("Failed to retrieve portfolio for user {}: {}", userEmail, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
      * Gets portfolio items by type.
      */
     public List<PortfolioResponse> getPortfolioByType(String userEmail, String type) {
-        return repository.findByUserEmailAndType(userEmail, type)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        logger.debug("Retrieving portfolio by type '{}' for user: {}", type, userEmail);
+
+        try {
+            List<PortfolioResponse> portfolio = repository.findByUserEmailAndType(userEmail, type)
+                    .stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+
+            logger.info("Retrieved {} portfolio items of type '{}' for user {}", portfolio.size(), type, userEmail);
+            return portfolio;
+        } catch (Exception e) {
+            logger.error("Failed to retrieve portfolio by type '{}' for user {}: {}", type, userEmail, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
      * Calculates user's net worth.
      */
     public NetWorthResponse getNetWorth(String userEmail) {
-        BigDecimal totalInvestment = repository.getTotalInvestmentByUser(userEmail);
-        BigDecimal currentValue = repository.getCurrentValueByUser(userEmail);
-        BigDecimal totalPnl = repository.getTotalPnLByUser(userEmail);
+        logger.debug("Calculating net worth for user: {}", userEmail);
 
-        BigDecimal pnlPercentage = BigDecimal.ZERO;
-        if (totalInvestment != null && totalInvestment.compareTo(BigDecimal.ZERO) != 0) {
-            pnlPercentage = totalPnl.divide(totalInvestment, 6, RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100));
+        try {
+            BigDecimal totalInvestment = repository.getTotalInvestmentByUser(userEmail);
+            BigDecimal currentValue = repository.getCurrentValueByUser(userEmail);
+            BigDecimal totalPnl = repository.getTotalPnLByUser(userEmail);
+
+            BigDecimal pnlPercentage = BigDecimal.ZERO;
+            if (totalInvestment != null && totalInvestment.compareTo(BigDecimal.ZERO) != 0) {
+                pnlPercentage = totalPnl.divide(totalInvestment, 6, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100));
+            }
+
+            NetWorthResponse response = new NetWorthResponse(
+                    totalInvestment != null ? totalInvestment : BigDecimal.ZERO,
+                    currentValue != null ? currentValue : BigDecimal.ZERO,
+                    totalPnl != null ? totalPnl : BigDecimal.ZERO,
+                    pnlPercentage
+            );
+
+            logger.info("Calculated net worth for user {}: totalInvestment=${}, currentValue=${}, pnl=${} ({}%)",
+                       userEmail, response.getTotalInvestment(), response.getCurrentValue(),
+                       response.getTotalPnl(), response.getPnlPercentage());
+            return response;
+        } catch (Exception e) {
+            logger.error("Failed to calculate net worth for user {}: {}", userEmail, e.getMessage(), e);
+            throw e;
         }
-
-        return new NetWorthResponse(
-                totalInvestment != null ? totalInvestment : BigDecimal.ZERO,
-                currentValue != null ? currentValue : BigDecimal.ZERO,
-                totalPnl != null ? totalPnl : BigDecimal.ZERO,
-                pnlPercentage
-        );
     }
 
     /**
@@ -94,13 +139,25 @@ public class PortfolioService {
      */
     @Transactional
     public void updateCurrentPrices(String symbol, BigDecimal currentPrice) {
-        List<Portfolio> holdings = repository.findAll().stream()
-                .filter(p -> p.getSymbol().equals(symbol))
-                .collect(Collectors.toList());
+        logger.info("Updating current prices for symbol {} to {}", symbol, currentPrice);
 
-        for (Portfolio holding : holdings) {
-            holding.setCurrentPrice(currentPrice);
-            repository.save(holding);
+        try {
+            List<Portfolio> holdings = repository.findAll().stream()
+                    .filter(p -> p.getSymbol().equals(symbol))
+                    .collect(Collectors.toList());
+
+            logger.debug("Found {} holdings for symbol {}", holdings.size(), symbol);
+
+            for (Portfolio holding : holdings) {
+                holding.setCurrentPrice(currentPrice);
+                repository.save(holding);
+                logger.debug("Updated holding id {} for user {}", holding.getId(), holding.getUserEmail());
+            }
+
+            logger.info("Successfully updated {} holdings for symbol {}", holdings.size(), symbol);
+        } catch (Exception e) {
+            logger.error("Failed to update current prices for symbol {}: {}", symbol, e.getMessage(), e);
+            throw e;
         }
     }
 

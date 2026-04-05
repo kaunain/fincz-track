@@ -6,6 +6,8 @@ import com.fincz.portfolio.dto.PortfolioResponse;
 import com.fincz.portfolio.service.PortfolioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +25,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PortfolioController {
 
+    private static final Logger logger = LoggerFactory.getLogger(PortfolioController.class);
+
     private final PortfolioService service;
 
     /**
@@ -32,8 +36,17 @@ public class PortfolioController {
     public ResponseEntity<PortfolioResponse> addInvestment(
             @AuthenticationPrincipal String userEmail,
             @Valid @RequestBody AddInvestmentRequest request) {
-        PortfolioResponse response = service.addInvestment(userEmail, request);
-        return ResponseEntity.ok(response);
+        logger.info("User {} adding investment: symbol={}, quantity={}, price={}",
+                   userEmail, request.getSymbol(), request.getQuantity(), request.getPurchasePrice());
+
+        try {
+            PortfolioResponse response = service.addInvestment(userEmail, request);
+            logger.info("Successfully added investment for user {}: {}", userEmail, response.getSymbol());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Failed to add investment for user {}: {}", userEmail, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -41,8 +54,16 @@ public class PortfolioController {
      */
     @GetMapping
     public ResponseEntity<List<PortfolioResponse>> getPortfolio(@AuthenticationPrincipal String userEmail) {
-        List<PortfolioResponse> portfolio = service.getPortfolio(userEmail);
-        return ResponseEntity.ok(portfolio);
+        logger.debug("User {} requesting complete portfolio", userEmail);
+
+        try {
+            List<PortfolioResponse> portfolio = service.getPortfolio(userEmail);
+            logger.info("Retrieved portfolio for user {}: {} items", userEmail, portfolio.size());
+            return ResponseEntity.ok(portfolio);
+        } catch (Exception e) {
+            logger.error("Failed to retrieve portfolio for user {}: {}", userEmail, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -52,8 +73,16 @@ public class PortfolioController {
     public ResponseEntity<List<PortfolioResponse>> getPortfolioByType(
             @AuthenticationPrincipal String userEmail,
             @PathVariable String type) {
-        List<PortfolioResponse> portfolio = service.getPortfolioByType(userEmail, type);
-        return ResponseEntity.ok(portfolio);
+        logger.debug("User {} requesting portfolio by type: {}", userEmail, type);
+
+        try {
+            List<PortfolioResponse> portfolio = service.getPortfolioByType(userEmail, type);
+            logger.info("Retrieved {} portfolio items of type {} for user {}", portfolio.size(), type, userEmail);
+            return ResponseEntity.ok(portfolio);
+        } catch (Exception e) {
+            logger.error("Failed to retrieve portfolio by type {} for user {}: {}", type, userEmail, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -61,8 +90,16 @@ public class PortfolioController {
      */
     @GetMapping("/networth")
     public ResponseEntity<NetWorthResponse> getNetWorth(@AuthenticationPrincipal String userEmail) {
-        NetWorthResponse netWorth = service.getNetWorth(userEmail);
-        return ResponseEntity.ok(netWorth);
+        logger.debug("User {} requesting net worth calculation", userEmail);
+
+        try {
+            NetWorthResponse netWorth = service.getNetWorth(userEmail);
+            logger.info("Calculated net worth for user {}: ${}", userEmail, netWorth.getTotalValue());
+            return ResponseEntity.ok(netWorth);
+        } catch (Exception e) {
+            logger.error("Failed to calculate net worth for user {}: {}", userEmail, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -70,6 +107,9 @@ public class PortfolioController {
      */
     @GetMapping("/test")
     public ResponseEntity<String> test() {
-        return ResponseEntity.ok("Portfolio Service is running!");
+        logger.debug("Health check request received");
+        String response = "Portfolio Service is running!";
+        logger.debug("Health check response: {}", response);
+        return ResponseEntity.ok(response);
     }
 }
