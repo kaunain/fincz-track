@@ -1,7 +1,9 @@
 package com.fincz.market.service;
 
 import com.fincz.market.dto.StockPriceResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -19,8 +21,10 @@ import java.util.Random;
  * Currently uses mock data for demonstration.
  */
 @Service
-@Slf4j
+@RequiredArgsConstructor
 public class MarketDataService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MarketDataService.class);
 
     private final Random random = new Random();
 
@@ -52,30 +56,41 @@ public class MarketDataService {
      */
     @Cacheable(value = "stockPrices", key = "#symbol")
     public StockPriceResponse getStockPrice(String symbol) {
-        log.info("Fetching stock price for symbol: {}", symbol);
+        logger.info("Fetching stock price for symbol: {}", symbol);
 
-        // Check if we have mock data for this symbol
-        if (!STOCK_NAMES.containsKey(symbol)) {
-            throw new IllegalArgumentException("Stock symbol not found: " + symbol);
+        try {
+            // Check if we have mock data for this symbol
+            if (!STOCK_NAMES.containsKey(symbol)) {
+                logger.warn("Stock symbol not found in mock data: {}", symbol);
+                throw new IllegalArgumentException("Stock symbol not found: " + symbol);
+            }
+
+            // Generate mock price data
+            BigDecimal basePrice = BASE_PRICES.get(symbol);
+            BigDecimal currentPrice = generateMockPrice(basePrice);
+            BigDecimal change = currentPrice.subtract(basePrice);
+            BigDecimal changePercent = change.divide(basePrice, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+            BigDecimal volume = BigDecimal.valueOf(random.nextInt(1000000) + 100000);
+
+            StockPriceResponse response = new StockPriceResponse(
+                    symbol,
+                    STOCK_NAMES.get(symbol),
+                    currentPrice,
+                    change,
+                    changePercent,
+                    volume,
+                    LocalDateTime.now()
+            );
+
+            logger.info("Generated mock price for {} ({}): ${} (change: ${} / {}%)",
+                       symbol, response.getName(), response.getPrice(),
+                       response.getChange(), response.getChangePercent());
+            return response;
+        } catch (Exception e) {
+            logger.error("Failed to fetch stock price for symbol {}: {}", symbol, e.getMessage(), e);
+            throw e;
         }
-
-        // Generate mock price data
-        BigDecimal basePrice = BASE_PRICES.get(symbol);
-        BigDecimal currentPrice = generateMockPrice(basePrice);
-        BigDecimal change = currentPrice.subtract(basePrice);
-        BigDecimal changePercent = change.divide(basePrice, 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100));
-        BigDecimal volume = BigDecimal.valueOf(random.nextInt(1000000) + 100000);
-
-        return new StockPriceResponse(
-                symbol,
-                STOCK_NAMES.get(symbol),
-                currentPrice,
-                change,
-                changePercent,
-                volume,
-                LocalDateTime.now()
-        );
     }
 
     /**
@@ -83,9 +98,16 @@ public class MarketDataService {
      * This would be called periodically or on demand.
      */
     public void updatePortfolioPrices(String symbol) {
-        // In a real implementation, this would call the portfolio service
-        // to update current prices for all holdings of this symbol
-        log.info("Updating portfolio prices for symbol: {}", symbol);
+        logger.info("Updating portfolio prices for symbol: {}", symbol);
+
+        try {
+            // In a real implementation, this would call the portfolio service
+            // to update current prices for all holdings of this symbol
+            logger.debug("Portfolio price update completed for symbol: {}", symbol);
+        } catch (Exception e) {
+            logger.error("Failed to update portfolio prices for symbol {}: {}", symbol, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
