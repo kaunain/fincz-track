@@ -16,6 +16,9 @@ SERVICES=(
     "8083:Portfolio Service:http://localhost:8083/portfolio/test"
     "8084:Market Data Service:http://localhost:8084/market/test"
     "8085:Notification Service:http://localhost:8085/notifications/test"
+    "5432:PostgreSQL:"
+    "8088:Adminer:http://localhost:8088"
+    "5173:Frontend:http://localhost:5173"
 )
 
 echo ""
@@ -27,12 +30,17 @@ for service in "${SERVICES[@]}"; do
 
     # Check if port is listening
     if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
-        # Try to get response from health endpoint
-        response=$(curl -s --max-time 5 "$url" 2>/dev/null)
-        if [ $? -eq 0 ] && [ -n "$response" ]; then
+        if [ -z "$url" ]; then
+            # For services without HTTP endpoint (like PostgreSQL), port open means running
             echo "✅ $name (Port $port): RUNNING"
         else
-            echo "⚠️  $name (Port $port): PORT OPEN but health check failed"
+            # Try to get response from health endpoint
+            response=$(curl -s --max-time 5 "$url" 2>/dev/null)
+            if [ $? -eq 0 ] && [ -n "$response" ]; then
+                echo "✅ $name (Port $port): RUNNING"
+            else
+                echo "⚠️  $name (Port $port): PORT OPEN but health check failed"
+            fi
         fi
     else
         echo "❌ $name (Port $port): NOT RUNNING"
@@ -45,4 +53,6 @@ echo "💡 Quick Commands:"
 echo "Start all services: ./run-services.sh all"
 echo "Stop all services:  ./run-services.sh stop"
 echo "Start individual:   ./run-services.sh [auth|user|gateway|portfolio|market|notification]"
+echo "Start PostgreSQL:   ./start-postgres.sh"
+echo "Start Frontend:     cd frontend && npm run dev"
 echo "=========================================="
