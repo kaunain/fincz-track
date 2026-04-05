@@ -42,6 +42,8 @@ Commands:
   status             Show PostgreSQL status
   logs               Show PostgreSQL logs (follow)
   logs-f             Show PostgreSQL logs (follow mode)
+  ui-start           Start Adminer Web UI (Dev Mode)
+  ui-stop            Stop Adminer Web UI
   psql               Open psql interactive shell
   backup             Backup all databases
   restore <file>     Restore from backup file
@@ -86,6 +88,20 @@ stop_postgres() {
     echo -e "${BLUE}🛑 Stopping PostgreSQL...${NC}"
     $DOCKER_COMPOSE down postgres
     echo -e "${GREEN}✅ PostgreSQL stopped${NC}"
+}
+
+# Function to start Adminer UI
+start_ui() {
+    echo -e "${BLUE}🌐 Starting Adminer Web UI...${NC}"
+    $DOCKER_COMPOSE --profile dev up -d adminer
+    echo -e "${GREEN}✅ Adminer available at http://localhost:8088${NC}"
+}
+
+# Function to stop Adminer UI
+stop_ui() {
+    echo -e "${BLUE}🛑 Stopping Adminer Web UI...${NC}"
+    $DOCKER_COMPOSE --profile dev stop adminer
+    echo -e "${GREEN}✅ Adminer stopped${NC}"
 }
 
 # Function to show status
@@ -214,6 +230,12 @@ case "${1:-help}" in
         ;;
     logs-f)
         follow_logs
+        ;;
+    ui-start)
+        start_ui
+        ;;
+    ui-stop)
+        stop_ui
         ;;
     psql)
         open_psql
