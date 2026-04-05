@@ -27,16 +27,4 @@ public class NotificationResponse {
     private LocalDateTime sentAt;
     private String status;
     private String errorMessage;
-
-    // Explicit constructor for Lombok issues
-    public NotificationResponse(Long id, String userEmail, String type, String subject, String message, LocalDateTime sentAt, String status, String errorMessage) {
-        this.id = id;
-        this.userEmail = userEmail;
-        this.type = type;
-        this.subject = subject;
-        this.message = message;
-        this.sentAt = sentAt;
-        this.status = status;
-        this.errorMessage = errorMessage;
-    }
 }
