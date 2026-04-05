@@ -72,21 +72,25 @@ EOF
 )
 
 PORTFOLIO_SCHEMA=$(cat <<'EOF'
-CREATE TABLE IF NOT EXISTS portfolio (
+CREATE TABLE IF NOT EXISTS portfolios (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL,
+    user_email VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL,
-    units DECIMAL(18, 2) NOT NULL,
-    buy_price DECIMAL(18, 2) NOT NULL,
-    current_price DECIMAL(18, 2),
-    purchase_date DATE,
-    notes TEXT,
+    symbol VARCHAR(100) NOT NULL,
+    units DECIMAL(19, 4) NOT NULL,
+    buy_price DECIMAL(19, 4) NOT NULL,
+    current_price DECIMAL(19, 4),
+    total_investment DECIMAL(19, 2),
+    current_value DECIMAL(19, 2),
+    pnl DECIMAL(19, 2),
+    pnl_percentage DECIMAL(7, 4),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_portfolio_user_id ON portfolio(user_id);
-CREATE INDEX IF NOT EXISTS idx_portfolio_type ON portfolio(type);
+CREATE INDEX IF NOT EXISTS idx_portfolios_user_email ON portfolios(user_email);
+CREATE INDEX IF NOT EXISTS idx_portfolios_type ON portfolios(type);
+CREATE INDEX IF NOT EXISTS idx_portfolios_symbol ON portfolios(symbol);
 EOF
 )
 
