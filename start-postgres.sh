@@ -17,14 +17,14 @@ if [ ! -f "docker-compose.yml" ]; then
     exit 1
 fi
 
-# Load environment variables if .env.postgres exists
-if [ -f ".env.postgres" ]; then
-    echo "📝 Loading environment variables from .env.postgres"
-    export $(cat .env.postgres | grep -v '#' | xargs)
+# Load environment variables if .env exists
+if [ -f ".env" ]; then
+    echo "📝 Loading environment variables from .env"
+    export $(cat .env | grep -v '#' | xargs)
 else
-    echo "⚠️  .env.postgres not found. Using default values."
-    export POSTGRES_USER="fincz_user"
-    export POSTGRES_PASSWORD="fincz_password"
+    echo "⚠️  .env not found. Using default values."
+    export POSTGRES_USER="fincz_dbo"
+    export POSTGRES_PASSWORD="fincz_dbo"
     export POSTGRES_DB="fincz_db"
     export POSTGRES_PORT="5432"
 fi

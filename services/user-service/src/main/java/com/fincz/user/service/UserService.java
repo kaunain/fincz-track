@@ -29,8 +29,8 @@ public class UserService {
 
         User user = new User();
         user.setEmail(email);
-        user.setName(name);
-        user.setRole("USER");
+        user.setFirstName(name);
+        user.setUserId(1); // dummy for now
 
         return mapToResponse(repo.save(user));
     }
@@ -46,7 +46,7 @@ public class UserService {
         User user = repo.findByEmail(email)
                 .orElseThrow(() -> new UserException("User profile not found"));
 
-        user.setName(request.getName());
+        user.setFirstName(request.getName());
         user.setPhone(request.getPhone());
         user.setAge(request.getAge());
         user.setOccupation(request.getOccupation());
@@ -78,9 +78,9 @@ public class UserService {
     private UserResponse mapToResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
-        response.setName(user.getName());
+        response.setName(user.getFirstName() + " " + (user.getLastName() != null ? user.getLastName() : ""));
         response.setEmail(user.getEmail());
-        response.setRole(user.getRole());
+        response.setRole("USER");
         response.setPhone(user.getPhone());
         response.setAge(user.getAge());
         response.setOccupation(user.getOccupation());

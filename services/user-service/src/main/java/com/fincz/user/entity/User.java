@@ -9,7 +9,7 @@ import lombok.Setter;
  * @since April 2026
  */
 @Entity
-@Table(name = "users")
+@Table(name = "user_profiles")
 @Getter
 @Setter
 public class User {
@@ -17,20 +17,41 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
+    @Column(name = "user_id")
+    private Integer userId;
 
     @Column(unique = true)
     private String email;
 
-    private String password;
+    @Column(name = "first_name")
+    private String firstName;
 
-    private String role;
+    @Column(name = "last_name")
+    private String lastName;
 
     private String phone;
+
+    private String address;
+
+    private String city;
+
+    private String state;
+
+    private String country;
+
+    @Column(name = "postal_code")
+    private String postalCode;
 
     private Integer age;
 
     private String occupation;
 
+    @Column(name = "financial_goals")
     private String financialGoals;
+
+    @Column(name = "created_at")
+    private java.time.LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private java.time.LocalDateTime updatedAt;
 }

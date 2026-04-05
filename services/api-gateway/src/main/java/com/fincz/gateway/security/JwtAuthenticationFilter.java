@@ -4,7 +4,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -25,7 +24,6 @@ import java.util.List;
  * JWT Authentication Filter for API Gateway.
  * Validates JWT tokens for protected routes.
  */
-@Slf4j
 @Component
 public class JwtAuthenticationFilter implements GatewayFilter {
 
@@ -35,6 +33,7 @@ public class JwtAuthenticationFilter implements GatewayFilter {
     private static final List<String> PUBLIC_PATHS = List.of(
         "/api/auth/login",
         "/api/auth/signup",
+        "/api/auth/test",
         "/test"
     );
 
@@ -69,7 +68,7 @@ public class JwtAuthenticationFilter implements GatewayFilter {
             return chain.filter(exchange.mutate().request(modifiedRequest).build());
 
         } catch (Exception e) {
-            log.error("JWT validation failed: {}", e.getMessage());
+            // log.error("JWT validation failed: {}", e.getMessage());
             return unauthorized(exchange);
         }
     }

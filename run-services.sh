@@ -90,25 +90,31 @@ if [ "$SERVICE" = "stop" ]; then
 
 elif [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway" ] || [ "$SERVICE" = "portfolio" ] || [ "$SERVICE" = "market" ] || [ "$SERVICE" = "notification" ]; then
     if [ "$SERVICE" = "auth" ]; then
-        export DB_URL=${DB_URL:-"jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"}
+        export DB_URL="jdbc:postgresql://localhost:5432/auth_db"
+        export SERVER_PORT=8081
         SERVICE_NAME="Auth Service"
         SERVICE_DIR="services/auth-service"
     elif [ "$SERVICE" = "user" ]; then
-        export DB_URL=${DB_URL:-"jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1"}
+        export DB_URL="jdbc:postgresql://localhost:5432/user_db"
+        export SERVER_PORT=8082
         SERVICE_NAME="User Service"
         SERVICE_DIR="services/user-service"
     elif [ "$SERVICE" = "gateway" ]; then
+        export SERVER_PORT=8080
         SERVICE_NAME="API Gateway"
         SERVICE_DIR="services/api-gateway"
     elif [ "$SERVICE" = "portfolio" ]; then
-        export DB_URL=${DB_URL:-"jdbc:h2:mem:portfoliodb;DB_CLOSE_DELAY=-1"}
+        export DB_URL="jdbc:postgresql://localhost:5432/portfolio_db"
+        export SERVER_PORT=8083
         SERVICE_NAME="Portfolio Service"
         SERVICE_DIR="services/portfolio-service"
     elif [ "$SERVICE" = "market" ]; then
+        export SERVER_PORT=8084
         SERVICE_NAME="Market Data Service"
         SERVICE_DIR="services/market-data-service"
     else
-        export DB_URL=${DB_URL:-"jdbc:h2:mem:notificationdb;DB_CLOSE_DELAY=-1"}
+        export DB_URL="jdbc:postgresql://localhost:5432/notification_db"
+        export SERVER_PORT=8085
         SERVICE_NAME="Notification Service"
         SERVICE_DIR="services/notification-service"
     fi
@@ -120,6 +126,8 @@ elif [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gatew
     echo "------------------------------------------------"
 
     cd "$SERVICE_DIR" || exit
+    export JWT_SECRET
+    export JWT_EXPIRATION
     mvn spring-boot:run
 
 elif [ "$SERVICE" = "both" ] || [ "$SERVICE" = "all" ]; then
@@ -144,15 +152,15 @@ elif [ "$SERVICE" = "both" ] || [ "$SERVICE" = "all" ]; then
     export DB_PASS
 
     if [ "$SERVICE" = "all" ]; then
-        (cd services/auth-service && export DB_URL="jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE" && mvn spring-boot:run) &
-        (cd services/user-service && export DB_URL="jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1" && mvn spring-boot:run) &
-        (cd services/api-gateway && mvn spring-boot:run) &
-        (cd services/portfolio-service && export DB_URL="jdbc:h2:mem:portfoliodb;DB_CLOSE_DELAY=-1" && mvn spring-boot:run) &
-        (cd services/market-data-service && mvn spring-boot:run) &
-        (cd services/notification-service && export DB_URL="jdbc:h2:mem:notificationdb;DB_CLOSE_DELAY=-1" && mvn spring-boot:run) &
+        (cd services/auth-service && export DB_URL="jdbc:postgresql://localhost:5432/auth_db" && export SERVER_PORT=8081 && mvn spring-boot:run) &
+        (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && export SERVER_PORT=8082 && mvn spring-boot:run) &
+        (cd services/api-gateway && export SERVER_PORT=8080 && mvn spring-boot:run) &
+        (cd services/portfolio-service && export DB_URL="jdbc:postgresql://localhost:5432/portfolio_db" && export SERVER_PORT=8083 && mvn spring-boot:run) &
+        (cd services/market-data-service && export SERVER_PORT=8084 && mvn spring-boot:run) &
+        (cd services/notification-service && export DB_URL="jdbc:postgresql://localhost:5432/notification_db" && export SERVER_PORT=8085 && mvn spring-boot:run) &
     else
-        (cd services/auth-service && export DB_URL="jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE" && mvn spring-boot:run) &
-        (cd services/user-service && export DB_URL="jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1" && mvn spring-boot:run) &
+        (cd services/auth-service && export DB_URL="jdbc:postgresql://localhost:5432/auth_db" && mvn spring-boot:run) &
+        (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && mvn spring-boot:run) &
     fi
     wait
 
