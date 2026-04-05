@@ -4,6 +4,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -27,6 +29,8 @@ import java.util.List;
 @Component
 public class JwtAuthenticationFilter implements GatewayFilter {
 
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
@@ -41,15 +45,20 @@ public class JwtAuthenticationFilter implements GatewayFilter {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
+        String method = request.getMethod().name();
+
+        logger.debug("Processing request: {} {}", method, path);
 
         // Skip authentication for public paths
         if (isPublicPath(path)) {
+            logger.debug("Allowing access to public path: {}", path);
             return chain.filter(exchange);
         }
 
         // Extract token from Authorization header
         String authHeader = request.getHeaders().getFirst("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.warn("Missing or invalid Authorization header for protected path: {}", path);
             return unauthorized(exchange);
         }
 
@@ -61,6 +70,8 @@ public class JwtAuthenticationFilter implements GatewayFilter {
 
             // Add user email to request headers for downstream services
             String userEmail = claims.getSubject();
+            logger.info("Authenticated user {} for request: {} {}", userEmail, method, path);
+
             ServerHttpRequest modifiedRequest = request.mutate()
                 .header("X-User-Email", userEmail)
                 .build();
@@ -68,7 +79,7 @@ public class JwtAuthenticationFilter implements GatewayFilter {
             return chain.filter(exchange.mutate().request(modifiedRequest).build());
 
         } catch (Exception e) {
-            // log.error("JWT validation failed: {}", e.getMessage());
+            logger.error("JWT validation failed for request {} {}: {}", method, path, e.getMessage());
             return unauthorized(exchange);
         }
     }
@@ -78,17 +89,27 @@ public class JwtAuthenticationFilter implements GatewayFilter {
     }
 
     private Claims validateToken(String token) {
-        SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
-        return Jwts.parser()
-            .verifyWith(key)
-            .build()
-            .parseSignedClaims(token)
-            .getPayload();
+        try {
+            SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+            Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+            logger.debug("Successfully validated JWT token for user: {}", claims.getSubject());
+            return claims;
+        } catch (Exception e) {
+            logger.warn("JWT token validation failed: {}", e.getMessage());
+            throw e;
+        }
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
         ServerHttpResponse response = exchange.getResponse();
+        String path = exchange.getRequest().getURI().getPath();
         response.setStatusCode(HttpStatus.UNAUTHORIZED);
+        logger.warn("Returning 401 Unauthorized for request: {} {}", exchange.getRequest().getMethod(), path);
         return response.setComplete();
     }
 }
