@@ -611,6 +611,260 @@ EOF
 }
 
 ################################################################################
+# Auto-Fix Functions
+################################################################################
+
+# Auto-fix duplicate constructors with @RequiredArgsConstructor
+auto_fix_duplicates() {
+    print_header "Auto-Fix: Removing Duplicate Constructors"
+    
+    if [ -n "$SPECIFIC_SERVICE" ] && [ ! "$SPECIFIC_SERVICE" = "all" ]; then
+        local services=("$SPECIFIC_SERVICE")
+    else
+        local services=("${SERVICES[@]}")
+    fi
+    
+    local fixed_count=0
+    
+    for service in "${services[@]}"; do
+        local service_path="$SERVICES_DIR/$service"
+        
+        if [ ! -d "$service_path" ]; then
+            continue
+        fi
+        
+        # Find files with @RequiredArgsConstructor and explicit constructor
+        find "$service_path/src/main/java" -name "*.java" 2>/dev/null | while read file; do
+            if grep -q "@RequiredArgsConstructor" "$file" && grep -q "public.*(.*).*{" "$file"; then
+                # Check if it's an explicit constructor that duplicates @RequiredArgsConstructor
+                if grep -A 2 "@RequiredArgsConstructor" "$file" | grep -q "public.*(.*).*{"; then
+                    print_info "  Fixing $(basename $file)..."
+                    
+                    # Create backup
+                    cp "$file" "$file.bak"
+                    
+                    # Remove explicit constructor after @RequiredArgsConstructor
+                    # This is a simplified approach - might need manual review
+                    sed -i '/@RequiredArgsConstructor/,/^    }$/{/@RequiredArgsConstructor/!{/^    public [^(]*(.*).*{/,/^    }$/d;}}' "$file"
+                    
+                    print_success "  Fixed: $(basename $file)"
+                    ((fixed_count++))
+                    ((FIXED_ISSUES++))
+                fi
+            fi
+        done
+    done
+    
+    if [ $fixed_count -gt 0 ]; then
+        print_auto_fix "Removed duplicate constructors from $fixed_count files"
+    fi
+    
+    return 0
+}
+
+# Auto-fix manual logger fields to @Slf4j
+auto_fix_loggers() {
+    print_header "Auto-Fix: Migrating to @Slf4j Annotations"
+    
+    if [ -n "$SPECIFIC_SERVICE" ] && [ ! "$SPECIFIC_SERVICE" = "all" ]; then
+        local services=("$SPECIFIC_SERVICE")
+    else
+        local services=("${SERVICES[@]}")
+    fi
+    
+    local fixed_count=0
+    
+    for service in "${services[@]}"; do
+        local service_path="$SERVICES_DIR/$service"
+        
+        if [ ! -d "$service_path" ]; then
+            continue
+        fi
+        
+        # Find files with manual logger declarations
+        find "$service_path/src/main/java" -name "*.java" 2>/dev/null | while read file; do
+            if grep -q "LoggerFactory.getLogger" "$file" && ! grep -q "import lombok.extern.slf4j.Slf4j" "$file"; then
+                print_info "  Fixing $(basename $file)..."
+                
+                # Create backup
+                cp "$file" "$file.bak"
+                
+                # Extract logger variable name and add lombok import
+                if ! grep -q "import lombok.extern.slf4j.Slf4j" "$file"; then
+                    sed -i '/^import lombok\./a import lombok.extern.slf4j.Slf4j;' "$file"
+                fi
+                
+                # Add @Slf4j annotation before class definition
+                sed -i '/^public class /i @Slf4j' "$file"
+                
+                # Remove manual logger declaration and old imports
+                sed -i '/private static final Logger.*/d' "$file"
+                sed -i '/private.*Logger.*=.*LoggerFactory.*/d' "$file"
+                sed -i '/import org\.slf4j\.Logger;/d' "$file"
+                sed -i '/import org\.slf4j\.LoggerFactory;/d' "$file"
+                
+                # Replace logger.something() with log.something() (only if logger was the variable name)
+                if grep -q "logger\." "$file"; then
+                    sed -i 's/logger\.info(/log.info(/g' "$file"
+                    sed -i 's/logger\.error(/log.error(/g' "$file"
+                    sed -i 's/logger\.debug(/log.debug(/g' "$file"
+                    sed -i 's/logger\.warn(/log.warn(/g' "$file"
+                    sed -i 's/logger\.trace(/log.trace(/g' "$file"
+                fi
+                
+                if grep -q "@Slf4j" "$file"; then
+                    print_success "  Fixed: $(basename $file)"
+                    ((fixed_count++))
+                    ((FIXED_ISSUES++))
+                fi
+            fi
+        done
+    done
+    
+    if [ $fixed_count -gt 0 ]; then
+        print_auto_fix "Migrated $fixed_count files to @Slf4j"
+    fi
+    
+    return 0
+}
+
+# Auto-fix System.out.println calls
+auto_fix_printlns() {
+    print_header "Auto-Fix: Replacing System.out.println with Logging"
+    
+    if [ -n "$SPECIFIC_SERVICE" ] && [ ! "$SPECIFIC_SERVICE" = "all" ]; then
+        local services=("$SPECIFIC_SERVICE")
+    else
+        local services=("${SERVICES[@]}")
+    fi
+    
+    local fixed_count=0
+    
+    for service in "${services[@]}"; do
+        local service_path="$SERVICES_DIR/$service"
+        
+        if [ ! -d "$service_path" ]; then
+            continue
+        fi
+        
+        # Find and fix System.out.println calls
+        find "$service_path/src/main/java" -name "*.java" 2>/dev/null | while read file; do
+            if grep -q "System\.out\.println" "$file"; then
+                print_info "  Fixing $(basename $file)..."
+                
+                # Create backup
+                cp "$file" "$file.bak"
+                
+                # Replace System.out.println with log.info
+                sed -i 's/System\.out\.println(\(.*\));/log.info(\1);/g' "$file"
+                
+                if grep -q "log.info" "$file"; then
+                    print_success "  Fixed: $(basename $file)"
+                    ((fixed_count++))
+                    ((FIXED_ISSUES++))
+                fi
+            fi
+        done
+    done
+    
+    if [ $fixed_count -gt 0 ]; then
+        print_auto_fix "Fixed System.out.println in $fixed_count files"
+    fi
+    
+    return 0
+}
+
+# Auto-fix unused imports
+auto_fix_imports() {
+    print_header "Auto-Fix: Removing Unused Imports"
+    
+    if [ -n "$SPECIFIC_SERVICE" ] && [ ! "$SPECIFIC_SERVICE" = "all" ]; then
+        local services=("$SPECIFIC_SERVICE")
+    else
+        local services=("${SERVICES[@]}")
+    fi
+    
+    local fixed_count=0
+    
+    for service in "${services[@]}"; do
+        local service_path="$SERVICES_DIR/$service"
+        
+        if [ ! -d "$service_path" ]; then
+            continue
+        fi
+        
+        # Use Maven compile with -DunusedDependencies would require maven-dependency-plugin
+        # For now, we'll manually check and suggest fixes in check_unused_imports
+        # Auto-fixing imports automatically is risky without proper AST parsing
+    done
+    
+    return 0
+}
+
+# Auto-fix: commit changes
+auto_fix_git_status() {
+    print_header "Auto-Fix: Committing Changes"
+    
+    if ! git status &> /dev/null; then
+        return 0
+    fi
+    
+    local uncommitted=$(git status --porcelain | wc -l)
+    
+    if [ "$uncommitted" -gt 0 ]; then
+        print_warning "Found $uncommitted uncommitted changes"
+        
+        # Add all changes
+        git add . 2>/dev/null || true
+        
+        # Commit with timestamp
+        if git commit -m "Auto-fix: Code quality improvements ($(date '+%Y-%m-%d %H:%M:%S'))" 2>/dev/null; then
+            print_success "Changes committed"
+            ((FIXED_ISSUES++))
+        else
+            print_warning "Some changes may already be staged"
+        fi
+    fi
+    
+    return 0
+}
+
+# Rebuild services after fixes
+auto_rebuild_services() {
+    print_header "Auto-Fix: Rebuilding Services"
+    
+    if [ -n "$SPECIFIC_SERVICE" ] && [ ! "$SPECIFIC_SERVICE" = "all" ]; then
+        local services=("$SPECIFIC_SERVICE")
+    else
+        local services=("${SERVICES[@]}")
+    fi
+    
+    for service in "${services[@]}"; do
+        local service_path="$SERVICES_DIR/$service"
+        
+        if [ ! -d "$service_path" ]; then
+            continue
+        fi
+        
+        print_info "Rebuilding $service..."
+        
+        if (cd "$service_path" && mvn clean compile -q 2>&1); then
+            print_success "✓ $service rebuilt successfully"
+        else
+            print_warning "⚠ $service rebuild had issues"
+        fi
+    done
+    
+    return 0
+}
+
+# Dummy POM config fix (for compatibility with existing code)
+auto_fix_pom_config() {
+    print_info "POM configurations are set via Maven build process"
+    return 0
+}
+
+################################################################################
 # Main Execution
 ################################################################################
 
@@ -671,7 +925,13 @@ EOF
     # Apply auto-fixes if requested
     if [ "$FIX_ALL" = true ]; then
         print_header "APPLYING AUTO-FIXES"
-        auto_fix_pom_config || true
+        
+        # Run auto-fix functions in sequence
+        auto_fix_loggers || true
+        auto_fix_duplicates || true
+        auto_fix_printlns || true
+        auto_fix_git_status || true
+        auto_rebuild_services || true
     fi
     
     # Print summary
