@@ -41,6 +41,9 @@ public class NotificationService {
      * Sends a notification email to a user.
      */
     public NotificationResponse sendNotification(SendNotificationRequest request) {
+        log.info("Sending notification to user {}: type={}, subject={}",
+                request.getUserEmail(), request.getType(), request.getSubject());
+
         Notification notification = new Notification();
         notification.setUserEmail(request.getUserEmail());
         notification.setType(request.getType());
@@ -60,6 +63,7 @@ public class NotificationService {
         }
 
         Notification saved = repository.save(notification);
+        log.debug("Notification saved with id: {}", saved.getId());
         return mapToResponse(saved);
     }
 
@@ -71,13 +75,18 @@ public class NotificationService {
     public void sendTaxReminders() {
         log.info("Checking for tax reminder notifications...");
 
-        // In a real implementation, this would:
-        // 1. Check current date vs tax filing deadline
-        // 2. Find users who haven't filed taxes
-        // 3. Send reminders
+        try {
+            // In a real implementation, this would:
+            // 1. Check current date vs tax filing deadline
+            // 2. Find users who haven't filed taxes
+            // 3. Send reminders
 
-        // For demo, we'll just log
-        log.info("Tax reminder check completed");
+            // For demo, we'll just log
+            log.info("Tax reminder check completed - no reminders needed");
+        } catch (Exception e) {
+            log.error("Failed to send tax reminders: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -88,22 +97,37 @@ public class NotificationService {
     public void sendPortfolioAlerts() {
         log.info("Checking for portfolio alert notifications...");
 
-        // In a real implementation, this would:
-        // 1. Check portfolio performance changes
-        // 2. Send alerts for significant changes
+        try {
+            // In a real implementation, this would:
+            // 1. Check portfolio performance changes
+            // 2. Send alerts for significant changes
 
-        // For demo, we'll just log
-        log.info("Portfolio alert check completed");
+            // For demo, we'll just log
+            log.info("Portfolio alert check completed - no alerts needed");
+        } catch (Exception e) {
+            log.error("Failed to send portfolio alerts: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
      * Gets notification history for a user.
      */
     public List<NotificationResponse> getUserNotifications(String userEmail) {
-        return repository.findByUserEmail(userEmail)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        log.debug("Retrieving notifications for user: {}", userEmail);
+
+        try {
+            List<NotificationResponse> notifications = repository.findByUserEmail(userEmail)
+                    .stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+
+            log.info("Retrieved {} notifications for user {}", notifications.size(), userEmail);
+            return notifications;
+        } catch (Exception e) {
+            log.error("Failed to retrieve notifications for user {}: {}", userEmail, e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
