@@ -26,7 +26,22 @@ const Dashboard = () => {
       setPortfolio(portfolioRes.data);
       setNetWorth(netWorthRes.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load dashboard data');
+      console.error('Dashboard data error:', err);
+      let errorMessage = 'Failed to load dashboard data';
+      
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -42,7 +57,7 @@ const Dashboard = () => {
 
   const chartData = portfolio ? portfolio.map(item => ({
     name: item.name,
-    value: item.units * item.buy_price,
+    value: parseFloat(item.units) * parseFloat(item.buyPrice),
   })) : [];
 
   const totalValue = chartData.reduce((sum, item) => sum + item.value, 0);
@@ -143,7 +158,7 @@ const Dashboard = () => {
                       <p className="text-sm text-gray-600">{item.type} • {item.units} units</p>
                     </div>
                     <p className="text-lg font-bold text-primary">
-                      ₹{(item.units * item.buy_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      ₹{(parseFloat(item.units) * parseFloat(item.buyPrice)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                     </p>
                   </div>
                 ))}
