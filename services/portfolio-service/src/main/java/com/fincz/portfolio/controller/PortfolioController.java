@@ -36,8 +36,8 @@ public class PortfolioController {
     public ResponseEntity<PortfolioResponse> addInvestment(
             @AuthenticationPrincipal String userEmail,
             @Valid @RequestBody AddInvestmentRequest request) {
-        logger.info("User {} adding investment: symbol={}, quantity={}, price={}",
-                   userEmail, request.getSymbol(), request.getQuantity(), request.getPurchasePrice());
+        logger.info("User {} adding investment: symbol={}, units={}, buyPrice={}",
+                   userEmail, request.getSymbol(), request.getUnits(), request.getBuyPrice());
 
         try {
             PortfolioResponse response = service.addInvestment(userEmail, request);
