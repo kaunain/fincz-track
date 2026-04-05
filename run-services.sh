@@ -114,7 +114,13 @@ elif [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gatew
         SERVICE_DIR="services/market-data-service"
     else
         export DB_URL="jdbc:postgresql://localhost:5432/notification_db"
+        export DB_USER="$DB_USER"
+        export DB_PASS="$DB_PASS"
         export SERVER_PORT=8085
+        export EMAIL_HOST="smtp.gmail.com"
+        export EMAIL_PORT="587"
+        export EMAIL_USERNAME="test@example.com"
+        export EMAIL_PASSWORD="dummy"
         SERVICE_NAME="Notification Service"
         SERVICE_DIR="services/notification-service"
     fi
