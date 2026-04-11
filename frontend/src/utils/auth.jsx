@@ -12,9 +12,13 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // रिफ्रेश पर यूजर की बेसिक जानकारी को बहाल करें
+  const [user, setUser] = useState(localStorage.getItem('user_email') ? { email: localStorage.getItem('user_email') } : null);
+  
+  // Optimistic Initialization: Check localStorage immediately to prevent refresh-redirects
+  const tokenExists = !!localStorage.getItem('auth_token');
+  const [isAuthenticated, setIsAuthenticated] = useState(tokenExists);
+  const [loading, setLoading] = useState(tokenExists);
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -32,8 +36,11 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
     } catch (error) {
       console.error('Failed to fetch user:', error);
-      localStorage.removeItem('auth_token');
-      setIsAuthenticated(false);
+      // Only clear auth if it's a definitive 401 error from the server
+      if (error.response?.status === 401) {
+        localStorage.removeItem('auth_token');
+        setIsAuthenticated(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -41,12 +48,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = (email, token) => {
     localStorage.setItem('auth_token', token);
+    localStorage.setItem('user_email', email);
     setUser({ email });
     setIsAuthenticated(true);
   };
 
   const logout = () => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_email');
     setUser(null);
     setIsAuthenticated(false);
   };
