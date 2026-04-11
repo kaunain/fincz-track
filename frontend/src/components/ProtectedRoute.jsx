@@ -1,13 +1,14 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../utils/auth';
+import ErrorBoundary from './ErrorBoundary';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, withErrorBoundary = false }) => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -16,7 +17,7 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return withErrorBoundary ? <ErrorBoundary>{children}</ErrorBoundary> : children;
 };
 
 export default ProtectedRoute;

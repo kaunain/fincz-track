@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { User, Mail, Phone, Lock, ShieldCheck, Trash2, Globe, Monitor, LogOut, X, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const ProfileSettings = () => {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState({
     name: 'Kaunain Ahmad',
     email: 'ahmad@example.com',

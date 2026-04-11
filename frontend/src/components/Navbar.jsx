@@ -19,7 +19,11 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center cursor-pointer" onClick={() => navigate('/dashboard')}>
-            <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">💰 Fincz Track</h1>
+            <img 
+              src="https://fincz.com/images/fincz-logo-black.png" 
+              alt="Fincz Logo" 
+              className="h-8 w-auto dark:invert transition-all" 
+            />
           </div>
 
           {isAuthenticated && (
