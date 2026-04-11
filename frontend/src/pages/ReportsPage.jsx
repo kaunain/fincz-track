@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { portfolioAPI } from '../utils/api';
 import { FileText } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import Card from '../components/Card';
 
 const ReportsPage = () => {
   const [portfolio, setPortfolio] = useState(null);
@@ -63,14 +64,6 @@ const ReportsPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8 transition-colors duration-200">
       <div className="max-w-7xl mx-auto">
@@ -87,35 +80,34 @@ const ReportsPage = () => {
 
         {/* Summary Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Investments</p>
             <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">{portfolio?.length || 0}</p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          </Card>
+          <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Value</p>
             <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">
               ₹{totalPortfolioValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
             </p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          </Card>
+          <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Stock Investments</p>
             <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">
               {portfolio?.filter(item => item.type === 'stock').length || 0}
             </p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          </Card>
+          <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Mutual Funds</p>
             <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">
               {portfolio?.filter(item => item.type === 'mf').length || 0}
             </p>
-          </div>
+          </Card>
         </div>
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Investment Value by Asset */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Investment Value by Asset</h2>
+          <Card title="Investment Value by Asset" loading={loading}>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
@@ -145,11 +137,10 @@ const ReportsPage = () => {
                 <p className="text-gray-500 dark:text-gray-400">No data to display</p>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Investment by Type */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Investments by Type</h2>
+          <Card title="Investments by Type" loading={loading}>
             {investmentByType.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={investmentByType}>
@@ -176,14 +167,11 @@ const ReportsPage = () => {
                 <p className="text-gray-500 dark:text-gray-400">No data to display</p>
               </div>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* Detailed Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Investment Details</h2>
-          </div>
+        <Card title="Investment Details" noPadding loading={loading}>
           {portfolio && portfolio.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -216,7 +204,7 @@ const ReportsPage = () => {
           ) : (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">No investments to display</p>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

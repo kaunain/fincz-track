@@ -3,6 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import { portfolioAPI } from '../utils/api';
 import { TrendingUp, DollarSign, Percent } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import Card from '../components/Card';
 
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
 
@@ -58,14 +59,6 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8 transition-colors duration-200">
       <div className="max-w-7xl mx-auto">
@@ -79,7 +72,7 @@ const Dashboard = () => {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <Card loading={loading}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Net Worth</p>
@@ -89,9 +82,9 @@ const Dashboard = () => {
               </div>
               <DollarSign className="text-primary dark:text-blue-400" size={40} />
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <Card loading={loading}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Profit/Loss</p>
@@ -101,9 +94,9 @@ const Dashboard = () => {
               </div>
               <TrendingUp className={profitLoss >= 0 ? 'text-success' : 'text-danger'} size={40} />
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <Card loading={loading}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Return %</p>
@@ -113,14 +106,13 @@ const Dashboard = () => {
               </div>
               <Percent className={profitPercentage >= 0 ? 'text-success' : 'text-danger'} size={40} />
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Portfolio Visualization */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Pie Chart */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Asset Allocation</h2>
+          <Card title="Asset Allocation" loading={loading}>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -154,11 +146,10 @@ const Dashboard = () => {
                 <p className="text-gray-500 dark:text-gray-400">No investments yet. Add some to get started!</p>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Portfolio Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Your Portfolio</h2>
+          <Card title="Your Portfolio" loading={loading}>
             {portfolio && portfolio.length > 0 ? (
               <div className="space-y-3 max-h-80 overflow-y-auto">
                 {portfolio.map((item, index) => (
@@ -178,7 +169,7 @@ const Dashboard = () => {
             ) : (
               <p className="text-gray-500 dark:text-gray-400 text-center py-8">No investments yet</p>
             )}
-          </div>
+          </Card>
         </div>
       </div>
     </div>
