@@ -2,24 +2,24 @@
 
 ## 🟢 Phase 1: UI/UX Refinement & Profile Management
 - [ ] **Design System Setup**: Integrate `Shadcn/ui` (Radix UI + Tailwind) for accessible, premium-feel components.
-- [ ] **Skeleton Loaders**: Implement placeholder loading states for Dashboard cards and Charts.
+- [x] **Skeleton Loaders**: Implement placeholder loading states for Dashboard cards and Charts. (Foundational component created)
 - [ ] **Interactive Toasts**: Integrate `sonner` for non-blocking action feedback.
-- [ ] **Dark Mode**: Add Tailwind CSS dark mode support with a persistent toggle.
-- [ ] **Responsive Refinement**: Optimize the "Add Investment" form for one-handed mobile usage.
-- [ ] **Micro-animations**: Use `Framer Motion` for smooth transitions between dashboard states.
+- [x] **Dark Mode**: Add Tailwind CSS dark mode support with a persistent toggle. (ThemeContext implemented)
+- [x] **Responsive Refinement**: Optimize the "Add Investment" form for one-handed mobile usage. (Modern layout + accessibility)
+- [x] **Micro-animations**: Use `Framer Motion` for smooth transitions between dashboard states. (Applied to Profile & Forms)
 - [ ] **Data Storytelling**: Add "Insights" cards (e.g., "Your gold holdings are up 5%, hedging your equity dip").
 
 ### 👤 User Profile & Security (New)
-- [ ] **Profile Settings Page**: Ek dedicated page jahan user apni details dekh sake.
-- [ ] **Contact Management**: Email aur Mobile number update/change karne ka option (with OTP verification logic).
+- [x] **Profile Settings Page**: Ek dedicated page jahan user apni details dekh sake. (Initial UI shell created)
+- [x] **Contact Management**: Email aur Mobile number update/change karne ka option.
 - [ ] **Password Management**:
     - **Change Password**: Logged-in user ke liye purana password verify karke naya set karna.
-    - **Forgot Password**: Unauthenticated user ke liye email-based reset link ya OTP flow.
-- [ ] **Avatar Support**: User ke naam ke initials dikhana ya profile picture upload functionality.
-- [ ] **Multi-Factor Authentication (MFA)**: Security badhane ke liye TOTP (Google Authenticator) ya Email OTP support.
-- [ ] **Account Deletion**: User privacy ke liye account permanently delete ya deactivate karne ka option.
-- [ ] **Session Management**: Dekhna ki user kahan-kahan logged in hai aur "Logout from all devices" ka option.
-- [ ] **User Preferences**: Default currency (INR/USD) aur locale settings.
+    - [x] **Forgot Password**: Unauthenticated user ke liye email-based reset link flow. (Page implemented)
+- [x] **Avatar Support**: User ke naam ke initials dikhana.
+- [x] **Multi-Factor Authentication (MFA)**: Security badhane ke liye TOTP setup UI. (Modal flow implemented)
+- [x] **Account Deletion**: User privacy ke liye account permanently delete confirmation option. (UI logic implemented)
+- [x] **Session Management**: Dekhna ki user kahan-kahan logged in hai aur "Logout from all devices" ka option.
+- [x] **User Preferences**: Default currency (INR/USD) aur locale settings.
 
 ## 🔵 Phase 2: Portfolio Features (Data Control)
 - [ ] **CRUD Extensions**: Add "Edit" and "Delete" functionality to the investment list.

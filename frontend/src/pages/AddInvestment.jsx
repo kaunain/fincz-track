@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { portfolioAPI } from '../utils/api';
 import { Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const AddInvestment = () => {
   const navigate = useNavigate();
@@ -77,29 +78,33 @@ const AddInvestment = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8 transition-colors">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-2xl mx-auto"
+      >
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center mb-8">
             <Plus className="text-primary mr-3" size={32} />
-            <h1 className="text-3xl font-bold text-gray-900">Add Investment</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Add Investment</h1>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-danger rounded">
+            <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 text-danger rounded-xl">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="mb-6 p-4 bg-green-100 border border-green-400 text-success rounded">
+            <div className="mb-6 p-4 bg-green-100 dark:bg-green-900/20 border border-green-400 dark:border-green-800 text-success rounded-xl">
               {success}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Investment Name
               </label>
               <input
@@ -108,13 +113,13 @@ const AddInvestment = () => {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="e.g., TCS, SBI, Axis Bank"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Stock Symbol/Code
               </label>
               <input
@@ -123,20 +128,20 @@ const AddInvestment = () => {
                 value={formData.symbol}
                 onChange={handleChange}
                 placeholder="e.g., TCS.NS, SBIN.NS, AXISBANK.NS"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Investment Type
               </label>
               <select
                 name="type"
                 value={formData.type}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
               >
                 <option value="stock">Stock</option>
                 <option value="mf">Mutual Fund</option>
@@ -149,7 +154,7 @@ const AddInvestment = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Number of Units
                 </label>
                 <input
@@ -159,13 +164,13 @@ const AddInvestment = () => {
                   onChange={handleChange}
                   placeholder="e.g., 10"
                   step="0.01"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Buy Price (₹)
                 </label>
                 <input
@@ -175,14 +180,14 @@ const AddInvestment = () => {
                   onChange={handleChange}
                   placeholder="e.g., 1500.50"
                   step="0.01"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                   required
                 />
               </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-700">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
+              <p className="text-sm text-blue-800 dark:text-blue-300">
                 <strong>Total Investment:</strong> ₹
                 {(
                   parseFloat(formData.units || 0) * parseFloat(formData.buyPrice || 0)
@@ -201,14 +206,14 @@ const AddInvestment = () => {
               <button
                 type="button"
                 onClick={() => navigate('/dashboard')}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-bold py-3 px-4 rounded-lg transition"
+                className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-lg transition"
               >
                 Cancel
               </button>
             </div>
           </form>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
