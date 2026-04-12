@@ -53,14 +53,9 @@ public class PortfolioController {
         log.info("User {} adding investment: symbol={}, units={}, buyPrice={}",
                    userEmail, request.getSymbol(), request.getUnits(), request.getBuyPrice());
 
-        try {
-            PortfolioResponse response = service.addInvestment(userEmail, request);
-            log.info("Successfully added investment for user {}: {}", userEmail, response.getSymbol());
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Failed to add investment for user {}: {}", userEmail, e.getMessage(), e);
-            throw e;
-        }
+        PortfolioResponse response = service.addInvestment(userEmail, request);
+        log.info("Successfully added investment for user {}: {}", userEmail, response.getSymbol());
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -70,14 +65,9 @@ public class PortfolioController {
     public ResponseEntity<List<PortfolioResponse>> getPortfolio(@AuthenticationPrincipal String userEmail) {
         log.debug("User {} requesting complete portfolio", userEmail);
 
-        try {
-            List<PortfolioResponse> portfolio = service.getPortfolio(userEmail);
-            log.info("Retrieved portfolio for user {}: {} items", userEmail, portfolio.size());
-            return ResponseEntity.ok(portfolio);
-        } catch (Exception e) {
-            log.error("Failed to retrieve portfolio for user {}: {}", userEmail, e.getMessage(), e);
-            throw e;
-        }
+        List<PortfolioResponse> portfolio = service.getPortfolio(userEmail);
+        log.info("Retrieved portfolio for user {}: {} items", userEmail, portfolio.size());
+        return ResponseEntity.ok(portfolio);
     }
 
     /**
@@ -89,14 +79,9 @@ public class PortfolioController {
             @PathVariable String type) {
         log.debug("User {} requesting portfolio by type: {}", userEmail, type);
 
-        try {
-            List<PortfolioResponse> portfolio = service.getPortfolioByType(userEmail, type);
-            log.info("Retrieved {} portfolio items of type {} for user {}", portfolio.size(), type, userEmail);
-            return ResponseEntity.ok(portfolio);
-        } catch (Exception e) {
-            log.error("Failed to retrieve portfolio by type {} for user {}: {}", type, userEmail, e.getMessage(), e);
-            throw e;
-        }
+        List<PortfolioResponse> portfolio = service.getPortfolioByType(userEmail, type);
+        log.info("Retrieved {} portfolio items of type {} for user {}", portfolio.size(), type, userEmail);
+        return ResponseEntity.ok(portfolio);
     }
 
     /**
@@ -106,14 +91,39 @@ public class PortfolioController {
     public ResponseEntity<NetWorthResponse> getNetWorth(@AuthenticationPrincipal String userEmail) {
         log.debug("User {} requesting net worth calculation", userEmail);
 
-        try {
-            NetWorthResponse netWorth = service.getNetWorth(userEmail);
-            log.info("Calculated net worth for user {}: ${}", userEmail, netWorth.getCurrentValue());
-            return ResponseEntity.ok(netWorth);
-        } catch (Exception e) {
-            log.error("Failed to calculate net worth for user {}: {}", userEmail, e.getMessage(), e);
-            throw e;
-        }
+        NetWorthResponse netWorth = service.getNetWorth(userEmail);
+        log.info("Calculated net worth for user {}: ${}", userEmail, netWorth.getCurrentValue());
+        return ResponseEntity.ok(netWorth);
+    }
+
+    /**
+     * Updates an existing investment.
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<PortfolioResponse> updateInvestment(
+            @AuthenticationPrincipal String userEmail,
+            @PathVariable Long id,
+            @Valid @RequestBody AddInvestmentRequest request) {
+        log.info("User {} updating investment {}: symbol={}, units={}, buyPrice={}",
+                userEmail, id, request.getSymbol(), request.getUnits(), request.getBuyPrice());
+
+        PortfolioResponse response = service.updateInvestment(id, userEmail, request);
+        log.info("Successfully updated investment {} for user {}", id, userEmail);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Deletes an investment from user's portfolio.
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteInvestment(
+            @AuthenticationPrincipal String userEmail,
+            @PathVariable Long id) {
+        log.info("User {} deleting investment: {}", userEmail, id);
+
+        service.deleteInvestment(id, userEmail);
+        log.info("Successfully deleted investment {} for user {}", id, userEmail);
+        return ResponseEntity.noContent().build();
     }
 
     /**

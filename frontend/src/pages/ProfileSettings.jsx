@@ -3,6 +3,7 @@ import { User, Mail, Phone, Lock, ShieldCheck, Trash2, Globe, Monitor, LogOut, X
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { getInitials } from '../utils/stringUtils';
 
 const ProfileSettings = () => {
   const navigate = useNavigate();
@@ -22,20 +23,34 @@ const ProfileSettings = () => {
     confirm: ''
   });
 
-  const handleUpdateProfile = (e) => {
+  const handleUpdateProfile = async (e) => {
     e.preventDefault();
-    // Mock API call
-    toast.success('Profile updated successfully!');
+    const loadingToast = toast.loading('Updating personal information...');
+    try {
+      // Placeholder for actual API call: await userAPI.updateProfile(profile);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      toast.success('Profile updated successfully!', { id: loadingToast });
+    } catch (error) {
+      toast.error('Failed to update profile', { id: loadingToast });
+    }
   };
 
-  const handleChangePassword = (e) => {
+  const handleChangePassword = async (e) => {
     e.preventDefault();
     if (passwords.new !== passwords.confirm) {
       toast.error('New passwords do not match!');
       return;
     }
-    toast.success('Password changed successfully!');
-    setPasswords({ current: '', new: '', confirm: '' });
+    
+    const loadingToast = toast.loading('Securing your account...');
+    try {
+      // Placeholder for actual API call: await authAPI.changePassword(passwords);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast.success('Password changed successfully!', { id: loadingToast });
+      setPasswords({ current: '', new: '', confirm: '' });
+    } catch (error) {
+      toast.error('Failed to change password. Please verify current password.', { id: loadingToast });
+    }
   };
 
   const containerVariants = {
@@ -59,7 +74,7 @@ const ProfileSettings = () => {
           {/* Header with Avatar Initials */}
           <div className="flex items-center gap-6 mb-6">
             <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-              {profile.name.split(' ').map(n => n[0]).join('')}
+              {getInitials(profile.name)}
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{profile.name}</h1>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 import { authAPI } from '../utils/api';
 import { useAuth } from '../utils/auth';
 
@@ -39,7 +40,7 @@ const AuthPage = () => {
         setPassword('');
         setConfirmPassword('');
         setEmail('');
-        alert('Signup successful! Please login.');
+        toast.success('Signup successful! Please login.');
       } else {
         const response = await authAPI.login(email, password);
         const token = response.data.token || response.data.accessToken || response.data;

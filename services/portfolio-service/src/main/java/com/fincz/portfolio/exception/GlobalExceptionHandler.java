@@ -19,42 +19,53 @@ package com.fincz.portfolio.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/**
- * @author Kaunain Ahmad
- * @since April 2026
- *
- * Global exception handler for the Portfolio Service.
- */
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(PortfolioNotFoundException.class)
+    public ResponseEntity<Object> handleNotFound(PortfolioNotFoundException ex) {
+        log.error("Portfolio item not found: {}", ex.getMessage());
+        return buildResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Object> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(java.util.stream.Collectors.joining(", "));
+        log.error("Validation error: {}", message);
+        return buildResponse(message, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(PortfolioException.class)
-    public ResponseEntity<ErrorResponse> handlePortfolioException(PortfolioException e) {
-        log.error("Portfolio error: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(e.getMessage()));
+    public ResponseEntity<Object> handlePortfolioException(PortfolioException ex) {
+        log.error("Portfolio business error: {}", ex.getMessage());
+        HttpStatus status = ex.getMessage().toLowerCase().contains("unauthorized") 
+            ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST;
+        return buildResponse(ex.getMessage(), status);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception e) {
-        log.error("Unexpected error: {}", e.getMessage(), e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("An unexpected error occurred"));
+    public ResponseEntity<Object> handleGeneralException(Exception ex) {
+        log.error("Unhandled internal error: ", ex);
+        return buildResponse("An internal server error occurred.", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    public static class ErrorResponse {
-        private final String message;
-
-        public ErrorResponse(String message) {
-            this.message = message;
-        }
-
-        public String getMessage() {
-            return message;
-        }
+    private ResponseEntity<Object> buildResponse(String message, HttpStatus status) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", status.value());
+        body.put("error", status.getReasonPhrase());
+        body.put("message", message);
+        return new ResponseEntity<>(body, status);
     }
 }

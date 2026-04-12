@@ -42,6 +42,8 @@ export const portfolioAPI = {
   getPortfolio: () => apiClient.get('/portfolio'),
   addInvestment: (data) => apiClient.post('/portfolio/add', data),
   getNetWorth: () => apiClient.get('/portfolio/networth'),
+  updateInvestment: (id, data) => apiClient.put(`/portfolio/${id}`, data),
+  deleteInvestment: (id) => apiClient.delete(`/portfolio/${id}`),
 };
 
 export const marketAPI = {

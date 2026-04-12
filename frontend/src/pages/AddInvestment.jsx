@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { portfolioAPI } from '../utils/api';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { calculateInvestmentValue } from '../utils/portfolioUtils';
+import { formatCurrency } from '../utils/formatters';
 
 const AddInvestment = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isEdit = location.state?.isEdit || false;
+  const editData = location.state?.investment;
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -17,6 +23,18 @@ const AddInvestment = () => {
     units: '',
     buyPrice: '',
   });
+
+  useEffect(() => {
+    if (isEdit && editData) {
+      setFormData({
+        name: editData.name || '',
+        symbol: editData.symbol || '',
+        type: editData.type || 'stock',
+        units: editData.units?.toString() || '',
+        buyPrice: editData.buyPrice?.toString() || '',
+      });
+    }
+  }, [isEdit, editData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,8 +59,13 @@ const AddInvestment = () => {
         buyPrice: parseFloat(formData.buyPrice),
       };
 
-      await portfolioAPI.addInvestment(payload);
-      setSuccess('Investment added successfully!');
+      if (isEdit && editData?.id) {
+        await portfolioAPI.updateInvestment(editData.id, payload);
+        setSuccess('Investment updated successfully!');
+      } else {
+        await portfolioAPI.addInvestment(payload);
+        setSuccess('Investment added successfully!');
+      }
       
       setFormData({
         name: '',
@@ -54,17 +77,17 @@ const AddInvestment = () => {
 
       setTimeout(() => {
         navigate('/dashboard');
-      }, 2000);
+      }, 1500);
     } catch (err) {
       console.error('Add investment error:', err);
-      let errorMessage = 'Failed to add investment. Please try again.';
+      let errorMessage = `Failed to ${isEdit ? 'update' : 'add'} investment. Please try again.`;
       
       if (err.response?.data) {
         if (typeof err.response.data === 'string') {
           errorMessage = err.response.data;
         } else if (err.response.data.message) {
           errorMessage = err.response.data.message;
-        } else if (err.response.data.error) {
+        } else if (err.response.data.error || err.response.data.status === 405) {
           errorMessage = err.response.data.error;
         }
       } else if (err.message) {
@@ -86,8 +109,14 @@ const AddInvestment = () => {
       >
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center mb-8">
-            <Plus className="text-primary mr-3" size={32} />
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Add Investment</h1>
+            {isEdit ? (
+              <Pencil className="text-primary mr-3" size={32} />
+            ) : (
+              <Plus className="text-primary mr-3" size={32} />
+            )}
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              {isEdit ? 'Edit Investment' : 'Add Investment'}
+            </h1>
           </div>
 
           {error && (
@@ -189,9 +218,7 @@ const AddInvestment = () => {
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
               <p className="text-sm text-blue-800 dark:text-blue-300">
                 <strong>Total Investment:</strong> ₹
-                {(
-                  parseFloat(formData.units || 0) * parseFloat(formData.buyPrice || 0)
-                ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                {formatCurrency(calculateInvestmentValue(formData.units, formData.buyPrice))}
               </p>
             </div>
 
@@ -201,7 +228,9 @@ const AddInvestment = () => {
                 disabled={loading}
                 className="flex-1 bg-primary hover:bg-secondary text-white font-bold py-3 px-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Adding...' : 'Add Investment'}
+                {loading 
+                  ? (isEdit ? 'Updating...' : 'Adding...') 
+                  : (isEdit ? 'Update Investment' : 'Add Investment')}
               </button>
               <button
                 type="button"
