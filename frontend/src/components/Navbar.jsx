@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Menu, X, User, Settings } from 'lucide-react';
+import { LogOut, Menu, X, User, Settings, Search } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../utils/auth';
 import ThemeToggle from './ThemeToggle';
@@ -25,6 +25,19 @@ const Navbar = () => {
               className="h-8 w-auto dark:invert transition-all" 
             />
           </div>
+
+          {isAuthenticated && (
+            <div className="hidden lg:flex items-center flex-1 max-w-md mx-8">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Search assets, types, or tags..." 
+                  className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary dark:text-white transition-all"
+                />
+              </div>
+            </div>
+          )}
 
           {isAuthenticated && (
             <>

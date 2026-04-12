@@ -104,6 +104,8 @@ GET    /users/profile            # Profile data
 GET    /portfolio                # Get investments
 POST   /portfolio/add            # Add investment
 GET    /portfolio/networth       # Portfolio metrics
+PUT    /portfolio/{id}           # Update investment
+DELETE /portfolio/{id}           # Delete investment
 GET    /market/price?symbol=XXX  # Market data
 ```
 

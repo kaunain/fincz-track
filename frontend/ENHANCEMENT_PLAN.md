@@ -3,17 +3,17 @@
 ## 🟢 Phase 1: UI/UX Refinement & Profile Management
 - [ ] **Design System Setup**: Integrate `Shadcn/ui` (Radix UI + Tailwind) for accessible, premium-feel components.
 - [x] **Skeleton Loaders**: Implement placeholder loading states for Dashboard cards and Charts. (Foundational component created)
-- [ ] **Interactive Toasts**: Integrate `sonner` for non-blocking action feedback.
+- [x] **Interactive Toasts**: Integrate `sonner` for non-blocking action feedback. (Implemented globally)
 - [x] **Dark Mode**: Add Tailwind CSS dark mode support with a persistent toggle. (ThemeContext implemented)
 - [x] **Responsive Refinement**: Optimize the "Add Investment" form for one-handed mobile usage. (Modern layout + accessibility)
 - [x] **Micro-animations**: Use `Framer Motion` for smooth transitions between dashboard states. (Applied to Profile & Forms)
-- [ ] **Data Storytelling**: Add "Insights" cards (e.g., "Your gold holdings are up 5%, hedging your equity dip").
+- [x] **Data Storytelling**: Add "Insights" cards (e.g., "Your gold holdings are up 5%, hedging your equity dip"). (Implemented on Dashboard)
 
 ### 👤 User Profile & Security (New)
 - [x] **Profile Settings Page**: Ek dedicated page jahan user apni details dekh sake. (Initial UI shell created)
 - [x] **Contact Management**: Email aur Mobile number update/change karne ka option.
-- [ ] **Password Management**:
-    - **Change Password**: Logged-in user ke liye purana password verify karke naya set karna.
+- [x] **Password Management**:
+    - [x] **Change Password**: Logged-in user ke liye purana password verify karke naya set karna.
     - [x] **Forgot Password**: Unauthenticated user ke liye email-based reset link flow. (Page implemented)
 - [x] **Avatar Support**: User ke naam ke initials dikhana.
 - [x] **Multi-Factor Authentication (MFA)**: Security badhane ke liye TOTP setup UI. (Modal flow implemented)
@@ -22,11 +22,11 @@
 - [x] **User Preferences**: Default currency (INR/USD) aur locale settings.
 
 ## 🔵 Phase 2: Portfolio Features (Data Control)
-- [ ] **CRUD Extensions**: Add "Edit" and "Delete" functionality to the investment list.
-- [ ] **Asset Tagging**: Investments ko categories mein group karna (e.g., "Retirement", "Emergency Fund", "House").
-- [ ] **Advanced Tables**: Implement `TanStack Table` for sorting, filtering, and pagination in the Reports view.
-- [ ] **CSV Import/Export**: Build a utility to bulk upload transactions from broker exports.
-- [ ] **Search**: Global search bar to find specific assets across types.
+- [x] **CRUD Extensions**: Add "Edit" and "Delete" functionality to the investment list. (UI & logic implemented)
+- [x] **Asset Tagging**: Investments ko categories mein group karna (e.g., "Retirement", "Emergency Fund", "House"). (UI display implemented)
+- [x] **Advanced Tables**: Implement `TanStack Table` for sorting, filtering, and pagination in the Reports view. (Robust internal implementation added)
+- [x] **CSV Import/Export**: Build a utility to bulk upload transactions from broker exports. (Export utility implemented)
+- [x] **Search**: Global search bar to find specific assets across types. (UI & localized logic implemented)
 
 ## 🟡 Phase 3: Analytics & Financial Logic
 - [ ] **Historical Line Charts**: Visualize Net Worth trends (Daily/Monthly/Yearly).

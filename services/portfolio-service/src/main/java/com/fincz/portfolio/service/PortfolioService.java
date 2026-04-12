@@ -17,6 +17,8 @@
 package com.fincz.portfolio.service;
 
 import com.fincz.portfolio.dto.AddInvestmentRequest;
+import com.fincz.portfolio.exception.PortfolioException;
+import com.fincz.portfolio.exception.PortfolioNotFoundException;
 import com.fincz.portfolio.dto.NetWorthResponse;
 import com.fincz.portfolio.dto.PortfolioResponse;
 import com.fincz.portfolio.entity.Portfolio;
@@ -30,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -53,67 +56,45 @@ public class PortfolioService {
     public PortfolioResponse addInvestment(String userEmail, AddInvestmentRequest request) {
         logger.info("Adding investment for user {}: symbol={}, units={}, buyPrice={}",
                    userEmail, request.getSymbol(), request.getUnits(), request.getBuyPrice());
+        
+        if (userEmail == null) throw new PortfolioException("User email is required");
 
-        try {
-            Portfolio portfolio = new Portfolio();
-            portfolio.setUserEmail(userEmail);
-            portfolio.setType(request.getType());
-            portfolio.setName(request.getName());
-            portfolio.setSymbol(request.getSymbol());
-            portfolio.setUnits(request.getUnits());
-            portfolio.setBuyPrice(request.getBuyPrice());
+        Portfolio portfolio = new Portfolio();
+        portfolio.setUserEmail(userEmail);
+        portfolio.setType(request.getType());
+        portfolio.setName(request.getName());
+        portfolio.setSymbol(request.getSymbol());
+        portfolio.setUnits(request.getUnits());
+        portfolio.setBuyPrice(request.getBuyPrice());
 
-            // For now, set current price same as buy price
-            // In real implementation, this would come from market data service
-            portfolio.setCurrentPrice(request.getBuyPrice());
+        // For now, set current price same as buy price
+        portfolio.setCurrentPrice(request.getBuyPrice());
 
-            Portfolio saved = repository.save(portfolio);
-            logger.info("Successfully saved investment for user {}: id={}", userEmail, saved.getId());
-            return mapToResponse(saved);
-        } catch (Exception e) {
-            logger.error("Failed to add investment for user {}: {}", userEmail, e.getMessage(), e);
-            throw e;
-        }
+        Portfolio saved = repository.save(portfolio);
+        logger.info("Successfully saved investment for user {}: id={}", userEmail, saved.getId());
+        return mapToResponse(saved);
     }
 
     /**
      * Gets user's complete portfolio.
      */
     public List<PortfolioResponse> getPortfolio(String userEmail) {
-        logger.debug("Retrieving complete portfolio for user: {}", userEmail);
-
-        try {
-            List<PortfolioResponse> portfolio = repository.findByUserEmail(userEmail)
-                    .stream()
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
-
-            logger.info("Retrieved {} portfolio items for user {}", portfolio.size(), userEmail);
-            return portfolio;
-        } catch (Exception e) {
-            logger.error("Failed to retrieve portfolio for user {}: {}", userEmail, e.getMessage(), e);
-            throw e;
-        }
+        if (userEmail == null) return java.util.Collections.emptyList();
+        return repository.findByUserEmail(userEmail)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     /**
      * Gets portfolio items by type.
      */
     public List<PortfolioResponse> getPortfolioByType(String userEmail, String type) {
-        logger.debug("Retrieving portfolio by type '{}' for user: {}", type, userEmail);
-
-        try {
-            List<PortfolioResponse> portfolio = repository.findByUserEmailAndType(userEmail, type)
-                    .stream()
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
-
-            logger.info("Retrieved {} portfolio items of type '{}' for user {}", portfolio.size(), type, userEmail);
-            return portfolio;
-        } catch (Exception e) {
-            logger.error("Failed to retrieve portfolio by type '{}' for user {}: {}", type, userEmail, e.getMessage(), e);
-            throw e;
-        }
+        if (userEmail == null) return java.util.Collections.emptyList();
+        return repository.findByUserEmailAndType(userEmail, type)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -121,33 +102,29 @@ public class PortfolioService {
      */
     public NetWorthResponse getNetWorth(String userEmail) {
         logger.debug("Calculating net worth for user: {}", userEmail);
+        if (userEmail == null) return new NetWorthResponse(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
 
-        try {
-            BigDecimal totalInvestment = repository.getTotalInvestmentByUser(userEmail);
-            BigDecimal currentValue = repository.getCurrentValueByUser(userEmail);
-            BigDecimal totalPnl = repository.getTotalPnLByUser(userEmail);
+        BigDecimal totalInvestment = repository.getTotalInvestmentByUser(userEmail);
+        BigDecimal currentValue = repository.getCurrentValueByUser(userEmail);
+        BigDecimal totalPnl = repository.getTotalPnLByUser(userEmail);
 
-            BigDecimal pnlPercentage = BigDecimal.ZERO;
-            if (totalInvestment != null && totalInvestment.compareTo(BigDecimal.ZERO) != 0) {
-                pnlPercentage = totalPnl.divide(totalInvestment, 6, RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(100));
-            }
-
-            NetWorthResponse response = new NetWorthResponse(
-                    totalInvestment != null ? totalInvestment : BigDecimal.ZERO,
-                    currentValue != null ? currentValue : BigDecimal.ZERO,
-                    totalPnl != null ? totalPnl : BigDecimal.ZERO,
-                    pnlPercentage
-            );
-
-            logger.info("Calculated net worth for user {}: totalInvestment=${}, currentValue=${}, pnl=${} ({}%)",
-                       userEmail, response.getTotalInvestment(), response.getCurrentValue(),
-                       response.getTotalPnl(), response.getPnlPercentage());
-            return response;
-        } catch (Exception e) {
-            logger.error("Failed to calculate net worth for user {}: {}", userEmail, e.getMessage(), e);
-            throw e;
+        BigDecimal pnlPercentage = BigDecimal.ZERO;
+        if (totalInvestment != null && totalInvestment.compareTo(BigDecimal.ZERO) != 0) {
+            pnlPercentage = totalPnl.divide(totalInvestment, 6, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
         }
+
+        NetWorthResponse response = new NetWorthResponse(
+                totalInvestment != null ? totalInvestment : BigDecimal.ZERO,
+                currentValue != null ? currentValue : BigDecimal.ZERO,
+                totalPnl != null ? totalPnl : BigDecimal.ZERO,
+                pnlPercentage
+        );
+
+        logger.info("Calculated net worth for user {}: totalInvestment=${}, currentValue=${}, pnl=${} ({}%)",
+                   userEmail, response.getTotalInvestment(), response.getCurrentValue(),
+                   response.getTotalPnl(), response.getPnlPercentage());
+        return response;
     }
 
     /**
@@ -175,6 +152,52 @@ public class PortfolioService {
             logger.error("Failed to update current prices for symbol {}: {}", symbol, e.getMessage(), e);
             throw e;
         }
+    }
+
+    /**
+     * Updates an existing investment.
+     */
+    @Transactional
+    public PortfolioResponse updateInvestment(Long id, String userEmail, AddInvestmentRequest request) {
+        logger.info("Updating investment {} for user {}", id, userEmail);
+
+        Portfolio portfolio = repository.findById(id)
+                .orElseThrow(() -> new PortfolioNotFoundException(id));
+
+        if (userEmail == null || !portfolio.getUserEmail().equalsIgnoreCase(userEmail)) {
+            logger.warn("Unauthorized update attempt: user {} tried to update investment {} owned by {}", 
+                    userEmail, id, portfolio.getUserEmail());
+            throw new PortfolioException("Unauthorized: You do not own this investment");
+        }
+
+        portfolio.setName(request.getName());
+        portfolio.setSymbol(request.getSymbol());
+        portfolio.setType(request.getType());
+        portfolio.setUnits(request.getUnits());
+        portfolio.setBuyPrice(request.getBuyPrice());
+        // In a real app, current price might stay same or fetch latest
+        portfolio.setCurrentPrice(request.getBuyPrice());
+
+        Portfolio saved = repository.save(portfolio);
+        logger.info("Successfully updated investment {} for user {}", id, userEmail);
+        return mapToResponse(saved);
+    }
+
+    /**
+     * Deletes an investment from user's portfolio.
+     */
+    @Transactional
+    public void deleteInvestment(Long id, String userEmail) {
+        logger.info("Deleting investment {} for user {}", id, userEmail);
+
+        Portfolio portfolio = repository.findById(id)
+                .orElseThrow(() -> new PortfolioNotFoundException(id));
+
+        if (userEmail == null || !portfolio.getUserEmail().equalsIgnoreCase(userEmail)) {
+            throw new PortfolioException("Unauthorized: You do not own this investment");
+        }
+
+        repository.delete(portfolio);
     }
 
     private PortfolioResponse mapToResponse(Portfolio portfolio) {

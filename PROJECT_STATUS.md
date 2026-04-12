@@ -48,6 +48,8 @@ POST   /api/portfolio/add       - Add investment
 GET    /api/portfolio           - Get user's portfolio
 GET    /api/portfolio/type/{type} - Get portfolio by type
 GET    /api/portfolio/networth  - Calculate net worth
+PUT    /api/portfolio/{id}      - Update existing investment
+DELETE /api/portfolio/{id}      - Remove investment from portfolio
 ```
 
 #### Market Data (Public)
