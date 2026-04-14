@@ -28,6 +28,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 /**
  * @author Kaunain Ahmad
  * @since April 2026
@@ -88,7 +92,7 @@ public class AuthService {
         }
 
         // Check if device is trusted to skip MFA
-        if (user.isMfaEnabled() && deviceToken != null) {
+        if (Boolean.TRUE.equals(user.getMfaEnabled()) && deviceToken != null) {
             try {
                 String emailFromToken = jwtUtil.extractEmail(deviceToken);
                 if (user.getEmail().equals(emailFromToken)) {
@@ -100,7 +104,7 @@ public class AuthService {
             }
         }
 
-        if (user.isMfaEnabled()) {
+        if (Boolean.TRUE.equals(user.getMfaEnabled())) {
             return new AuthResponse(null, true);
         }
 
@@ -145,9 +149,17 @@ public class AuthService {
 
         String secret = mfaService.generateSecret();
         user.setMfaSecret(secret);
+
+        // Generate 10 unique 8-character recovery codes
+        List<String> codes = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            codes.add(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        }
+        user.setRecoveryCodes(codes);
+
         repo.save(user);
 
-        return new MfaSetupResponse(secret, mfaService.getQrCodeUrl(email, secret));
+        return new MfaSetupResponse(secret, mfaService.getQrCodeUrl(email, secret), codes);
     }
 
     /**
@@ -163,6 +175,29 @@ public class AuthService {
         } else {
             throw new AuthException("Invalid verification code");
         }
+    }
+
+    /**
+     * Regenerates recovery codes for a user.
+     */
+    @Transactional
+    public List<String> regenerateRecoveryCodes(String email) {
+        logger.info("Regenerating recovery codes for user: {}", email);
+        User user = repo.findByEmail(email)
+                .orElseThrow(() -> new AuthException("User not found"));
+
+        if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
+            throw new AuthException("MFA must be enabled to regenerate recovery codes");
+        }
+
+        List<String> codes = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            codes.add(UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        }
+        user.setRecoveryCodes(codes);
+        repo.save(user);
+
+        return codes;
     }
 
     /**
@@ -187,8 +222,21 @@ public class AuthService {
         User user = repo.findByEmail(req.getEmail())
                 .orElseThrow(() -> new AuthException("User not found"));
 
-        if (!mfaService.verifyCode(user.getMfaSecret(), req.getCode())) {
-            throw new AuthException("Invalid MFA code");
+        boolean verified = mfaService.verifyCode(user.getMfaSecret(), req.getCode());
+
+        // Fallback: Check if the provided code is a valid recovery code
+        if (!verified && req.getCode() != null) {
+            String inputCode = req.getCode().toUpperCase();
+            if (user.getRecoveryCodes().contains(inputCode)) {
+                user.getRecoveryCodes().remove(inputCode);
+                repo.save(user);
+                verified = true;
+                logger.info("MFA verified using recovery code for user: {}", user.getEmail());
+            }
+        }
+
+        if (!verified) {
+            throw new AuthException("Invalid verification code");
         }
 
         String accessToken = jwtUtil.generateToken(user.getEmail());

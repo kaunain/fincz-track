@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, Lock, ShieldCheck, Trash2, Globe, Monitor, LogOut, X, AlertTriangle, Camera, CheckCircle, Copy, Download } from 'lucide-react';
+import { User, Mail, Phone, Lock, ShieldCheck, Trash2, Globe, Monitor, LogOut, X, AlertTriangle, Camera, CheckCircle, Copy, Download, RefreshCw } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,6 +26,9 @@ const ProfileSettings = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isDisableMfaModalOpen, setIsDisableMfaModalOpen] = useState(false);
+  const [isConfirmRegenerateOpen, setIsConfirmRegenerateOpen] = useState(false);
+  const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false);
+  const [newRecoveryCodes, setNewRecoveryCodes] = useState([]);
 
   const [mfaSetupData, setMfaSetupData] = useState(null);
   const [mfaCode, setMfaCode] = useState('');
@@ -124,6 +127,20 @@ const ProfileSettings = () => {
       setMfaCode('');
     } catch (error) {
       toast.error('Invalid verification code', { id: loadingToast });
+    }
+  };
+
+  const handleRegenerateRecoveryCodes = async () => {
+    setIsConfirmRegenerateOpen(false);
+    const loadingToast = toast.loading('Regenerating recovery codes...');
+    try {
+      const res = await authAPI.regenerateRecoveryCodes();
+      setNewRecoveryCodes(res.data);
+      toast.success('Recovery codes regenerated!', { id: loadingToast });
+      setIsRegenerateModalOpen(true);
+    } catch (error) {
+      console.error('Regeneration error:', error);
+      toast.error('Failed to regenerate recovery codes', { id: loadingToast });
     }
   };
 
@@ -320,6 +337,10 @@ const ProfileSettings = () => {
                     <CheckCircle size={14} /> Active
                   </span>
                   <button 
+                    onClick={() => setIsConfirmRegenerateOpen(true)}
+                    className="text-blue-600 text-sm font-medium hover:underline"
+                  >Regenerate Codes</button>
+                  <button 
                     onClick={() => setIsDisableMfaModalOpen(true)}
                     className="text-red-600 text-sm font-medium hover:underline"
                   >Disable</button>
@@ -445,6 +466,27 @@ const ProfileSettings = () => {
                       </button>
                     </div>
                   </div>
+
+                  {mfaSetupData?.recoveryCodes && (
+                    <div className="text-left bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                      <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mb-2">Recovery Codes (Save these safely!)</p>
+                      <div className="grid grid-cols-2 gap-1 font-mono text-[10px] dark:text-white">
+                        {mfaSetupData.recoveryCodes.map((code, idx) => (
+                          <span key={idx}>{code}</span>
+                        ))}
+                      </div>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(mfaSetupData.recoveryCodes.join('\n'));
+                          toast.success('Recovery codes copied');
+                        }}
+                        className="mt-2 text-[10px] text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        <Copy size={10} /> Copy all codes
+                      </button>
+                    </div>
+                  )}
+
                   <p className="text-xs text-gray-500 text-left">
                     Scan the QR code with your authenticator app (Google Authenticator, Authy, etc.) or enter the secret key manually.
                   </p>
@@ -462,6 +504,54 @@ const ProfileSettings = () => {
                   >Verify & Enable</button>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Regenerated Recovery Codes Modal */}
+      <AnimatePresence>
+        {isRegenerateModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-xl font-bold dark:text-white">New Recovery Codes</h3>
+                </div>
+                <button onClick={() => setIsRegenerateModalOpen(false)}><X size={20} className="text-gray-500 hover:text-gray-700 dark:text-white" /></button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="text-left bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+                  <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-3 uppercase">Save these safely! Old codes are now invalid.</p>
+                  <div className="grid grid-cols-2 gap-2 font-mono text-sm dark:text-white">
+                    {newRecoveryCodes.map((code, idx) => (
+                      <span key={idx}>{code}</span>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(newRecoveryCodes.join('\n'));
+                      toast.success('Recovery codes copied');
+                    }}
+                    className="mt-4 w-full py-2 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors text-sm font-semibold"
+                  >
+                    <Copy size={16} /> Copy all codes
+                  </button>
+                </div>
+                <button 
+                  onClick={() => setIsRegenerateModalOpen(false)}
+                  className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors"
+                >
+                  I have saved these codes
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
@@ -505,6 +595,16 @@ const ProfileSettings = () => {
         isOpen={isPasswordModalOpen} 
         onClose={() => setIsPasswordModalOpen(false)} 
       />
+
+      <ConfirmDialog
+        isOpen={isConfirmRegenerateOpen}
+        onClose={() => setIsConfirmRegenerateOpen(false)}
+        onConfirm={handleRegenerateRecoveryCodes}
+        title="Regenerate Recovery Codes?"
+        confirmText="Regenerate"
+      >
+        Are you sure you want to regenerate your recovery codes? This will <span className="font-bold text-red-600 dark:text-red-400">immediately invalidate</span> all your current codes. Make sure you are ready to save the new ones.
+      </ConfirmDialog>
 
       <ConfirmDialog
         isOpen={isDisableMfaModalOpen}

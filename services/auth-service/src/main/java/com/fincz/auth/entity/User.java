@@ -16,14 +16,20 @@
 
 package com.fincz.auth.entity;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -45,10 +51,15 @@ public class User {
     private String role;
 
     @Column(name = "mfa_enabled")
-    private boolean mfaEnabled = false;
+    private Boolean mfaEnabled = false;
 
     @Column(name = "mfa_secret")
     private String mfaSecret;
+
+    @ElementCollection
+    @CollectionTable(name = "user_recovery_codes", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "recovery_code")
+    private List<String> recoveryCodes = new ArrayList<>();
 
     @Column(name = "created_at")
     private java.time.LocalDateTime createdAt;
