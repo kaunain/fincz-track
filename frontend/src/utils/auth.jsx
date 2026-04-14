@@ -19,17 +19,19 @@ export const AuthProvider = ({ children }) => {
   const tokenExists = !!localStorage.getItem('auth_token');
   const [isAuthenticated, setIsAuthenticated] = useState(tokenExists);
   const [loading, setLoading] = useState(tokenExists);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (token) {
-      fetchUser();
+      fetchUser(false);
     } else {
       setLoading(false);
     }
   }, []);
 
-  const fetchUser = async () => {
+  const fetchUser = async (showOverlay = true) => {
+    if (showOverlay) setIsRefreshing(true);
     try {
       const response = await userAPI.getCurrentUser();
       setUser(response.data);
@@ -43,6 +45,7 @@ export const AuthProvider = ({ children }) => {
       }
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -61,7 +64,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAuthenticated, login, logout, fetchUser }}>
+    <AuthContext.Provider value={{ user, loading, isRefreshing, isAuthenticated, login, logout, fetchUser }}>
       {children}
     </AuthContext.Provider>
   );

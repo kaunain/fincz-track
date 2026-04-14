@@ -16,28 +16,27 @@
 
 package com.fincz.auth.dto;
 
-import jakarta.validation.constraints.Email;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * @author Kaunain Ahmad
- * @since April 2026
- */
-@Getter
-@Setter
-public class SignupRequest {
-    @NotBlank(message = "Name is required")
-    private String name;
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ChangePasswordRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
-    private String email;
+    @NotBlank(message = "Current password is required")
+    private String current;
 
-    @NotBlank(message = "Password is required")
+    @NotBlank(message = "New password is required")
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$", 
              message = "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character")
-    private String password;
+    @JsonProperty("new")
+    private String newPassword;
+
+    @NotBlank(message = "Password confirmation is required")
+    private String confirm;
 }

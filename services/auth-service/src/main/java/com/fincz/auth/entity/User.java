@@ -44,6 +44,12 @@ public class User {
 
     private String role;
 
+    @Column(name = "mfa_enabled")
+    private boolean mfaEnabled = false;
+
+    @Column(name = "mfa_secret")
+    private String mfaSecret;
+
     @Column(name = "created_at")
     private java.time.LocalDateTime createdAt;
 

@@ -16,8 +16,7 @@
 
 package com.fincz.auth.service;
 
-import com.fincz.auth.dto.LoginRequest;
-import com.fincz.auth.dto.SignupRequest;
+import com.fincz.auth.dto.*;
 import com.fincz.auth.entity.User;
 import com.fincz.auth.exception.AuthException;
 import com.fincz.auth.repository.UserRepository;
@@ -27,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * @author Kaunain Ahmad
@@ -42,6 +42,7 @@ public class AuthService {
     private final UserRepository repo;
     private final PasswordEncoder encoder;
     private final JwtUtil jwtUtil;
+    private final MfaService mfaService;
 
     /**
      * Handles user registration.
@@ -71,7 +72,7 @@ public class AuthService {
      * 
      * @return Generated JWT string
      */
-    public String login(LoginRequest req) {
+    public AuthResponse login(LoginRequest req, String deviceToken) {
         logger.debug("Processing login request for email: {}", req.getEmail());
 
         User user = repo.findByEmail(req.getEmail())
@@ -86,8 +87,119 @@ public class AuthService {
             throw new AuthException("Invalid password");
         }
 
+        // Check if device is trusted to skip MFA
+        if (user.isMfaEnabled() && deviceToken != null) {
+            try {
+                String emailFromToken = jwtUtil.extractEmail(deviceToken);
+                if (user.getEmail().equals(emailFromToken)) {
+                    logger.info("MFA bypassed via trusted device token for user: {}", user.getEmail());
+                    return new AuthResponse(jwtUtil.generateToken(user.getEmail()), false);
+                }
+            } catch (Exception e) {
+                logger.debug("Invalid or expired device token provided for user: {}", user.getEmail());
+            }
+        }
+
+        if (user.isMfaEnabled()) {
+            return new AuthResponse(null, true);
+        }
+
         String token = jwtUtil.generateToken(user.getEmail());
         logger.info("JWT token generated successfully for user: {}", user.getEmail());
-        return token;
+        return new AuthResponse(token, false);
+    }
+
+    /**
+     * Updates the password for an authenticated user.
+     */
+    @Transactional
+    public void changePassword(String email, ChangePasswordRequest req) {
+        logger.info("Processing password change request for user: {}", email);
+
+        User user = repo.findByEmail(email)
+                .orElseThrow(() -> new AuthException("User not found with email: " + email));
+
+        // Verify the current password
+        if (!encoder.matches(req.getCurrent(), user.getPassword())) {
+            logger.warn("Password change failed for user {}: current password incorrect", email);
+            throw new AuthException("The current password you provided is incorrect");
+        }
+
+        // Verify new password and confirmation match
+        if (!req.getNewPassword().equals(req.getConfirm())) {
+            throw new AuthException("The new password and confirmation do not match");
+        }
+
+        // Encode and save the new password
+        user.setPassword(encoder.encode(req.getNewPassword()));
+        repo.save(user);
+        logger.info("Password successfully updated for user: {}", email);
+    }
+
+    /**
+     * Starts the MFA setup process for a user.
+     */
+    public MfaSetupResponse setupMfa(String email) {
+        User user = repo.findByEmail(email)
+                .orElseThrow(() -> new AuthException("User not found"));
+
+        String secret = mfaService.generateSecret();
+        user.setMfaSecret(secret);
+        repo.save(user);
+
+        return new MfaSetupResponse(secret, mfaService.getQrCodeUrl(email, secret));
+    }
+
+    /**
+     * Enables MFA after verifying the first code.
+     */
+    public void enableMfa(String email, String code) {
+        User user = repo.findByEmail(email)
+                .orElseThrow(() -> new AuthException("User not found"));
+
+        if (mfaService.verifyCode(user.getMfaSecret(), code)) {
+            user.setMfaEnabled(true);
+            repo.save(user);
+        } else {
+            throw new AuthException("Invalid verification code");
+        }
+    }
+
+    /**
+     * Disables MFA for a user.
+     */
+    @Transactional
+    public void disableMfa(String email) {
+        logger.info("Processing MFA disable request for user: {}", email);
+        User user = repo.findByEmail(email)
+                .orElseThrow(() -> new AuthException("User not found"));
+
+        user.setMfaEnabled(false);
+        user.setMfaSecret(null); // Clear secret key for security
+        repo.save(user);
+        logger.info("MFA successfully disabled for user: {}", email);
+    }
+
+    /**
+     * Verifies MFA during login.
+     */
+    public MfaVerifyResponse verifyMfa(MfaVerifyRequest req) {
+        User user = repo.findByEmail(req.getEmail())
+                .orElseThrow(() -> new AuthException("User not found"));
+
+        if (!mfaService.verifyCode(user.getMfaSecret(), req.getCode())) {
+            throw new AuthException("Invalid MFA code");
+        }
+
+        String accessToken = jwtUtil.generateToken(user.getEmail());
+        String deviceToken = null;
+
+        // Generate a long-lived device token if requested
+        if (req.isRememberMe()) {
+            // In a production app, this should be a different token type with a longer expiry (e.g., 30 days)
+            deviceToken = jwtUtil.generateToken(user.getEmail()); 
+        }
+
+        return new MfaVerifyResponse(accessToken, deviceToken);
     }
 }

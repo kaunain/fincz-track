@@ -16,19 +16,15 @@
 
 package com.fincz.auth.controller;
 
-import com.fincz.auth.dto.AuthResponse;
-import com.fincz.auth.dto.LoginRequest;
-import com.fincz.auth.dto.SignupRequest;
+import com.fincz.auth.dto.*;
 import com.fincz.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * @author Kaunain Ahmad
@@ -64,15 +60,71 @@ public class AuthController {
      * Endpoint to authenticate and receive a token.
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest req) {
+    public ResponseEntity<AuthResponse> login(
+            @Valid @RequestBody LoginRequest req,
+            @RequestHeader(value = "X-Device-Token", required = false) String deviceToken) {
         logger.info("User login attempt for email: {}", req.getEmail());
         try {
-            String token = service.login(req);
+            AuthResponse response = service.login(req, deviceToken);
             logger.info("User successfully logged in with email: {}", req.getEmail());
-            return ResponseEntity.ok(new AuthResponse(token));
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             logger.warn("Failed login attempt for email: {}", req.getEmail(), e);
             throw e;
         }
+    }
+
+    /**
+     * Endpoint for authenticated users to change their password.
+     */
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @AuthenticationPrincipal String email,
+            @Valid @RequestBody ChangePasswordRequest req) {
+        logger.info("Password change attempt for user: {}", email);
+        service.changePassword(email, req);
+        return ResponseEntity.ok("Password updated successfully");
+    }
+
+    /**
+     * Generates MFA setup details for the authenticated user.
+     */
+    @GetMapping("/mfa/setup")
+    public ResponseEntity<MfaSetupResponse> setupMfa(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(service.setupMfa(email));
+    }
+
+    /**
+     * Confirms and enables MFA for the authenticated user.
+     */
+    @PostMapping("/mfa/enable")
+    public ResponseEntity<?> enableMfa(@AuthenticationPrincipal String email, @RequestBody String code) {
+        service.enableMfa(email, code);
+        return ResponseEntity.ok("MFA enabled successfully");
+    }
+
+    /**
+     * Disables MFA for the authenticated user.
+     */
+    @PostMapping("/mfa/disable")
+    public ResponseEntity<?> disableMfa(@AuthenticationPrincipal String email) {
+        logger.info("MFA disable attempt for user: {}", email);
+        service.disableMfa(email);
+        return ResponseEntity.ok("MFA disabled successfully");
+    }
+
+    /**
+     * Public endpoint to verify MFA code during login.
+     */
+    @PostMapping("/mfa/verify")
+    public ResponseEntity<AuthResponse> verifyMfa(@Valid @RequestBody MfaVerifyRequest req) {
+        MfaVerifyResponse res = service.verifyMfa(req);
+        
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok();
+        if (res.getDeviceToken() != null) {
+            response.header("X-Device-Token", res.getDeviceToken());
+        }
+        
+        return response.body(new AuthResponse(res.getAccessToken(), false));
     }
 }

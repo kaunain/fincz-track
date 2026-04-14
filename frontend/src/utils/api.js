@@ -30,12 +30,25 @@ apiClient.interceptors.response.use(
 
 export const authAPI = {
   signup: (name, email, password) => apiClient.post('/auth/signup', { name, email, password }),
-  login: (email, password) => apiClient.post('/auth/login', { email, password }),
+  login: (email, password, deviceToken) => apiClient.post('/auth/login', { email, password }, {
+    headers: deviceToken ? { 'X-Device-Token': deviceToken } : {}
+  }),
+  changePassword: (data) => apiClient.put('/auth/change-password', data),
+  setupMfa: () => apiClient.get('/auth/mfa/setup'),
+  enableMfa: (code) => apiClient.post('/auth/mfa/enable', code, { headers: { 'Content-Type': 'text/plain' } }),
+  disableMfa: () => apiClient.post('/auth/mfa/disable'),
+  verifyMfa: (data) => apiClient.post('/auth/mfa/verify', data),
 };
 
 export const userAPI = {
   getCurrentUser: () => apiClient.get('/users/me'),
   getProfile: () => apiClient.get('/users/profile'),
+  updateProfile: (data) => apiClient.put('/users/me', data),
+  uploadAvatar: (formData) => apiClient.post('/users/me/avatar', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
 };
 
 export const portfolioAPI = {
