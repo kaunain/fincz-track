@@ -17,19 +17,16 @@
 package com.fincz.auth.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 /**
- * @author Kaunain Ahmad
- * @since April 2026
+ * DTO for the response after MFA verification.
  */
-@Getter
-@Setter
-@AllArgsConstructor
+@Data
 @NoArgsConstructor
-public class AuthResponse {
-    private String token;
-    private boolean mfaRequired;
+@AllArgsConstructor
+public class MfaVerifyResponse {
+    private String accessToken;
+    private String deviceToken;
 }

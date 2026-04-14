@@ -2,10 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, Menu, X, User, Settings, Search } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../utils/auth';
+import { useUser } from '../hooks/useUser';
+import { getInitials } from '../utils/stringUtils';
 import ThemeToggle from './ThemeToggle';
 
 const Navbar = () => {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
+  const { user } = useUser();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -68,7 +71,17 @@ const Navbar = () => {
                   >
                     <User size={20} />
                   </button>
-                  {user && <span className="text-xs text-gray-500 hidden lg:block">{user.email}</span>}
+                  {user && (
+                    <div className="hidden lg:flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-xs font-semibold text-gray-900 dark:text-white leading-none">{user.name || 'User'}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">{user.email}</p>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shadow-sm ring-2 ring-white dark:ring-gray-800">
+                        {getInitials(user.name || user.email)}
+                      </div>
+                    </div>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition shadow-sm"
@@ -90,6 +103,17 @@ const Navbar = () => {
 
         {isOpen && isAuthenticated && (
           <div className="md:hidden pb-4 space-y-2">
+            {user && (
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+                  {getInitials(user.name || user.email)}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{user.name || 'User'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                </div>
+              </div>
+            )}
             <button
               onClick={() => { navigate('/dashboard'); setIsOpen(false); }}
               className="block w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"

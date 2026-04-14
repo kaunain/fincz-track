@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
+import LoadingOverlay from './components/LoadingOverlay';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import AddInvestment from './pages/AddInvestment';
@@ -17,6 +18,11 @@ const RootRedirect = () => {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return null; // Wait for auth check to complete
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+};
+
+const GlobalLoading = () => {
+  const { isRefreshing } = useAuth();
+  return <LoadingOverlay isVisible={isRefreshing} />;
 };
 
 function App() {
@@ -33,6 +39,7 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <Toaster position="top-right" richColors />
+          <GlobalLoading />
           <Navbar />
           <ErrorBoundary>
             <Routes>
