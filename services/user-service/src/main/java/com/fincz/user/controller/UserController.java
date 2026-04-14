@@ -25,8 +25,13 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * @author Kaunain Ahmad
@@ -37,7 +42,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
-public class UserController {
+public class UserController extends BaseController {
 
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
     private final UserService service;
@@ -63,7 +68,8 @@ public class UserController {
      * Retrieves the profile of the currently authenticated user.
      */
     @GetMapping("/me")
-    public ResponseEntity<UserResponse> getProfile(@AuthenticationPrincipal String email) {
+    public ResponseEntity<UserResponse> getProfile() {
+        String email = getAuthenticatedUserEmail();
         logger.debug("Retrieving profile for authenticated user: {}", email);
         try {
             UserResponse response = service.getProfile(email);
@@ -80,8 +86,8 @@ public class UserController {
      */
     @PutMapping("/me")
     public ResponseEntity<UserResponse> updateProfile(
-            @AuthenticationPrincipal String email,
             @Valid @RequestBody UserUpdateRequest request) {
+        String email = getAuthenticatedUserEmail();
         logger.info("Updating profile for user: {}", email);
         try {
             UserResponse response = service.updateProfile(email, request);

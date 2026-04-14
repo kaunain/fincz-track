@@ -46,7 +46,8 @@ public class MfaService {
         byte[] secretBytes = new Base32().decode(secret);
 
         // Check current, previous, and next time windows to account for network latency or clock skew
-        for (int i = -1; i <= 1; i++) {
+        // Increased window to -2 to 2 for better reliability
+        for (int i = -2; i <= 2; i++) {
             if (calculateCode(secretBytes, timeIndex + i).equals(code)) {
                 return true;
             }

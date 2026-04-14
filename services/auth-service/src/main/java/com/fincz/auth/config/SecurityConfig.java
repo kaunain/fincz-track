@@ -17,8 +17,10 @@
 package com.fincz.auth.config;
 
 import com.fincz.auth.security.JwtAuthenticationFilter;
+import com.fincz.auth.service.UserServiceClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -37,6 +39,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  */
 @Configuration
 @EnableWebSecurity
+@EnableFeignClients(clients = {UserServiceClient.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
 

@@ -101,8 +101,8 @@ public class AuthController {
      * Confirms and enables MFA for the authenticated user.
      */
     @PostMapping("/mfa/enable")
-    public ResponseEntity<?> enableMfa(@AuthenticationPrincipal String email, @RequestBody String code) {
-        service.enableMfa(email, code);
+    public ResponseEntity<?> enableMfa(@AuthenticationPrincipal String email, @Valid @RequestBody MfaRequest req) {
+        service.enableMfa(email, req.getCode());
         return ResponseEntity.ok("MFA enabled successfully");
     }
 
@@ -122,6 +122,22 @@ public class AuthController {
         logger.info("MFA disable attempt for user: {}", email);
         service.disableMfa(email);
         return ResponseEntity.ok("MFA disabled successfully");
+    }
+
+    /**
+     * Returns the current MFA status for the authenticated user.
+     */
+    @GetMapping("/mfa/status")
+    public ResponseEntity<MfaStatusResponse> getMfaStatus(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(service.getMfaStatus(email));
+    }
+
+    /**
+     * Internal endpoint for other services to check MFA status.
+     */
+    @GetMapping("/internal/mfa-status")
+    public ResponseEntity<MfaStatusResponse> getMfaStatusInternal(@RequestParam String email) {
+        return ResponseEntity.ok(service.getMfaStatus(email));
     }
 
     /**

@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +48,7 @@ public class AuthService {
     private final PasswordEncoder encoder;
     private final JwtUtil jwtUtil;
     private final MfaService mfaService;
+    private final UserServiceClient userServiceClient;
 
     /**
      * Handles user registration.
@@ -54,20 +56,32 @@ public class AuthService {
      */
     public void signup(SignupRequest req) {
         logger.debug("Processing signup request for email: {}", req.getEmail());
+        String normalizedEmail = req.getEmail().toLowerCase();
 
         // Prevent duplicate registrations
-        if (repo.findByEmail(req.getEmail()).isPresent()) {
-            logger.warn("Signup attempt failed - email already exists: {}", req.getEmail());
+        if (repo.findByEmail(normalizedEmail).isPresent()) {
+            logger.warn("Signup attempt failed - email already exists: {}", normalizedEmail);
             throw new AuthException("Email already exists");
         }
 
         User user = new User();
         user.setName(req.getName());
-        user.setEmail(req.getEmail());
+        user.setEmail(normalizedEmail);
         user.setPassword(encoder.encode(req.getPassword()));
         user.setRole("ROLE_USER");
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
 
         User savedUser = repo.save(user);
+        
+        // Automatically initialize the user profile in user-service
+        try {
+            userServiceClient.createProfile(req);
+            logger.info("Triggered profile creation in user-service for: {}", req.getEmail());
+        } catch (Exception e) {
+            logger.error("Failed to initialize profile in user-service for: {}", req.getEmail(), e);
+        }
+        
         logger.info("User successfully created with ID: {} and email: {}", savedUser.getId(), savedUser.getEmail());
     }
 
@@ -78,16 +92,17 @@ public class AuthService {
      */
     public AuthResponse login(LoginRequest req, String deviceToken) {
         logger.debug("Processing login request for email: {}", req.getEmail());
+        String normalizedEmail = req.getEmail().toLowerCase();
 
-        User user = repo.findByEmail(req.getEmail())
+        User user = repo.findByEmail(normalizedEmail)
                 .orElseThrow(() -> {
-                    logger.warn("Login attempt failed - user not found: {}", req.getEmail());
+                    logger.warn("Login attempt failed - user not found: {}", normalizedEmail);
                     return new AuthException("User not found");
                 });
 
         // Validate the provided raw password against the hashed database password
         if (!encoder.matches(req.getPassword(), user.getPassword())) {
-            logger.warn("Login attempt failed - invalid password for email: {}", req.getEmail());
+            logger.warn("Login attempt failed - invalid password for email: {}", normalizedEmail);
             throw new AuthException("Invalid password");
         }
 
@@ -118,14 +133,15 @@ public class AuthService {
      */
     @Transactional
     public void changePassword(String email, ChangePasswordRequest req) {
-        logger.info("Processing password change request for user: {}", email);
+        String normalizedEmail = email.toLowerCase();
+        logger.info("Processing password change request for user: {}", normalizedEmail);
 
-        User user = repo.findByEmail(email)
-                .orElseThrow(() -> new AuthException("User not found with email: " + email));
+        User user = repo.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new AuthException("User not found with email: " + normalizedEmail));
 
         // Verify the current password
         if (!encoder.matches(req.getCurrent(), user.getPassword())) {
-            logger.warn("Password change failed for user {}: current password incorrect", email);
+            logger.warn("Password change failed for user {}: current password incorrect", normalizedEmail);
             throw new AuthException("The current password you provided is incorrect");
         }
 
@@ -137,14 +153,16 @@ public class AuthService {
         // Encode and save the new password
         user.setPassword(encoder.encode(req.getNewPassword()));
         repo.save(user);
-        logger.info("Password successfully updated for user: {}", email);
+        logger.info("Password successfully updated for user: {}", normalizedEmail);
     }
 
     /**
      * Starts the MFA setup process for a user.
      */
+    @Transactional
     public MfaSetupResponse setupMfa(String email) {
-        User user = repo.findByEmail(email)
+        String normalizedEmail = email.toLowerCase();
+        User user = repo.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new AuthException("User not found"));
 
         String secret = mfaService.generateSecret();
@@ -159,14 +177,16 @@ public class AuthService {
 
         repo.save(user);
 
-        return new MfaSetupResponse(secret, mfaService.getQrCodeUrl(email, secret), codes);
+        return new MfaSetupResponse(secret, mfaService.getQrCodeUrl(normalizedEmail, secret), codes);
     }
 
     /**
      * Enables MFA after verifying the first code.
      */
+    @Transactional
     public void enableMfa(String email, String code) {
-        User user = repo.findByEmail(email)
+        String normalizedEmail = email.toLowerCase();
+        User user = repo.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new AuthException("User not found"));
 
         if (mfaService.verifyCode(user.getMfaSecret(), code)) {
@@ -182,8 +202,9 @@ public class AuthService {
      */
     @Transactional
     public List<String> regenerateRecoveryCodes(String email) {
-        logger.info("Regenerating recovery codes for user: {}", email);
-        User user = repo.findByEmail(email)
+        String normalizedEmail = email.toLowerCase();
+        logger.info("Regenerating recovery codes for user: {}", normalizedEmail);
+        User user = repo.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new AuthException("User not found"));
 
         if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
@@ -205,21 +226,32 @@ public class AuthService {
      */
     @Transactional
     public void disableMfa(String email) {
-        logger.info("Processing MFA disable request for user: {}", email);
-        User user = repo.findByEmail(email)
+        String normalizedEmail = email.toLowerCase();
+        logger.info("Processing MFA disable request for user: {}", normalizedEmail);
+        User user = repo.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new AuthException("User not found"));
 
         user.setMfaEnabled(false);
         user.setMfaSecret(null); // Clear secret key for security
         repo.save(user);
-        logger.info("MFA successfully disabled for user: {}", email);
+        logger.info("MFA successfully disabled for user: {}", normalizedEmail);
+    }
+
+    @Transactional(readOnly = true)
+    public MfaStatusResponse getMfaStatus(String email) {
+        boolean enabled = repo.findByEmail(email.toLowerCase())
+                .map(User::getMfaEnabled)
+                .orElse(false);
+        return new MfaStatusResponse(enabled);
     }
 
     /**
      * Verifies MFA during login.
      */
+    @Transactional
     public MfaVerifyResponse verifyMfa(MfaVerifyRequest req) {
-        User user = repo.findByEmail(req.getEmail())
+        String normalizedEmail = req.getEmail().toLowerCase();
+        User user = repo.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new AuthException("User not found"));
 
         boolean verified = mfaService.verifyCode(user.getMfaSecret(), req.getCode());

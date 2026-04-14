@@ -35,10 +35,11 @@ export const authAPI = {
   }),
   changePassword: (data) => apiClient.put('/auth/change-password', data),
   setupMfa: () => apiClient.get('/auth/mfa/setup'),
-  enableMfa: (code) => apiClient.post('/auth/mfa/enable', code, { headers: { 'Content-Type': 'text/plain' } }),
+  enableMfa: (code) => apiClient.post('/auth/mfa/enable', { code }),
   regenerateRecoveryCodes: () => apiClient.post('/auth/mfa/recovery-codes/regenerate'),
   disableMfa: () => apiClient.post('/auth/mfa/disable'),
   verifyMfa: (data) => apiClient.post('/auth/mfa/verify', data),
+  getMfaStatus: () => apiClient.get('/auth/mfa/status'),
 };
 
 export const userAPI = {

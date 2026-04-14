@@ -23,8 +23,9 @@ import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -43,7 +44,7 @@ import java.util.List;
  * Validates JWT tokens for protected routes.
  */
 @Component
-public class JwtAuthenticationFilter implements GatewayFilter {
+public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
@@ -53,6 +54,7 @@ public class JwtAuthenticationFilter implements GatewayFilter {
     private static final List<String> PUBLIC_PATHS = List.of(
         "/api/auth/login",
         "/api/auth/signup",
+        "/api/auth/mfa/verify",
         "/api/auth/test",
         "/test"
     );
@@ -98,6 +100,11 @@ public class JwtAuthenticationFilter implements GatewayFilter {
             logger.error("JWT validation failed for request {} {}: {}", method, path, e.getMessage());
             return unauthorized(exchange);
         }
+    }
+
+    @Override
+    public int getOrder() {
+        return -1;
     }
 
     private boolean isPublicPath(String path) {

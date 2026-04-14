@@ -1,133 +1,114 @@
 /*
  * Copyright (c) 2026 Fincz-Track
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package com.fincz.user.service;
 
+import com.fincz.user.client.AuthServiceClient;
+import com.fincz.user.entity.UserProfile;
+import com.fincz.user.repository.UserProfileRepository;
 import com.fincz.user.dto.UserResponse;
 import com.fincz.user.dto.UserUpdateRequest;
-import com.fincz.user.entity.User;
-import com.fincz.user.exception.UserException;
-import com.fincz.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 
-/**
- * @author Kaunain Ahmad
- * @since April 2026
- */
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
-    private final UserRepository repo;
+    private final UserProfileRepository repository;
+    private final AuthServiceClient authClient;
 
     /**
-     * Creates a new user profile with basic information.
-     * Used for testing purposes when user signs up in auth-service.
-     */
-    public UserResponse createProfile(String email, String name) {
-        logger.debug("Creating user profile for email: {}", email);
-
-        if (repo.findByEmail(email).isPresent()) {
-            logger.warn("Attempted to create profile for existing email: {}", email);
-            throw new UserException("User profile already exists");
-        }
-
-        User user = new User();
-        user.setEmail(email);
-        user.setFirstName(name);
-        user.setUserId(1); // dummy for now
-
-        User savedUser = repo.save(user);
-        logger.info("User profile created successfully with ID: {} for email: {}", savedUser.getId(), email);
-        return mapToResponse(savedUser);
-    }
-
-    /**
-     * Updates user profile details for the authenticated user.
-     *
-     * @param email The email of the authenticated user.
-     * @param request DTO containing editable profile fields.
-     * @return UserResponse DTO of the updated user profile.
-     */
-    public UserResponse updateProfile(String email, UserUpdateRequest request) {
-        logger.debug("Updating profile for email: {}", email);
-
-        User user = repo.findByEmail(email)
-                .orElseThrow(() -> {
-                    logger.warn("Profile update failed - user not found: {}", email);
-                    return new UserException("User profile not found");
-                });
-
-        user.setFirstName(request.getName());
-        user.setPhone(request.getPhone());
-        user.setAge(request.getAge());
-        user.setOccupation(request.getOccupation());
-        user.setFinancialGoals(request.getFinancialGoals());
-
-        User updatedUser = repo.save(user);
-        logger.info("Profile updated successfully for email: {}", email);
-        return mapToResponse(updatedUser);
-    }
-
-    /**
-     * Retrieves a user profile by ID.
-     */
-    public UserResponse getById(Long id) {
-        logger.debug("Retrieving user profile by ID: {}", id);
-
-        User user = repo.findById(id)
-                .orElseThrow(() -> {
-                    logger.warn("User retrieval failed - user not found with ID: {}", id);
-                    return new UserException("User not found");
-                });
-
-        logger.debug("User profile retrieved successfully for ID: {}", id);
-        return mapToResponse(user);
-    }
-
-    /**
-     * Retrieves a user profile by email.
+     * Retrieves the profile data for a user.
      */
     public UserResponse getProfile(String email) {
-        logger.debug("Retrieving user profile by email: {}", email);
-
-        User user = repo.findByEmail(email)
-                .orElseThrow(() -> {
-                    logger.warn("Profile retrieval failed - user not found: {}", email);
-                    return new UserException("User profile not found");
-                });
-
-        logger.debug("User profile retrieved successfully for email: {}", email);
-        return mapToResponse(user);
+        UserProfile profile = repository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+        return convertToResponse(profile);
     }
 
-    private UserResponse mapToResponse(User user) {
+    /**
+     * Retrieves a user profile by its ID.
+     */
+    public UserResponse getById(Long id) {
+        UserProfile profile = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Profile not found with id: " + id));
+        return convertToResponse(profile);
+    }
+
+    /**
+     * Creates a new user profile.
+     */
+    @Transactional
+    public UserResponse createProfile(String email, String name) {
+        if (repository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Profile already exists for email: " + email);
+        }
+
+        UserProfile profile = new UserProfile();
+        profile.setEmail(email);
+        profile.setUserId(0L); // Default/Placeholder ID for the test endpoint
+
+        if (name != null) {
+            String[] parts = name.split(" ", 2);
+            profile.setFirstName(parts[0]);
+            if (parts.length > 1) {
+                profile.setLastName(parts[1]);
+            }
+        }
+
+        return convertToResponse(repository.save(profile));
+    }
+
+    /**
+     * Updates an existing user profile.
+     */
+    @Transactional
+    public UserResponse updateProfile(String email, UserUpdateRequest request) {
+        UserProfile profile = repository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Profile not found for email: " + email));
+
+        if (request.getName() != null) {
+            String[] parts = request.getName().split(" ", 2);
+            profile.setFirstName(parts[0]);
+            profile.setLastName(parts.length > 1 ? parts[1] : "");
+        }
+
+        profile.setPhone(request.getPhone());
+        profile.setAge(request.getAge());
+        profile.setOccupation(request.getOccupation());
+        profile.setFinancialGoals(request.getFinancialGoals());
+        profile.setUpdatedAt(LocalDateTime.now());
+
+        return convertToResponse(repository.save(profile));
+    }
+
+    private UserResponse convertToResponse(UserProfile profile) {
         UserResponse response = new UserResponse();
-        response.setId(user.getId());
-        response.setName(user.getFirstName() + " " + (user.getLastName() != null ? user.getLastName() : ""));
-        response.setEmail(user.getEmail());
-        response.setRole("USER");
-        response.setPhone(user.getPhone());
-        response.setAge(user.getAge());
-        response.setOccupation(user.getOccupation());
-        response.setFinancialGoals(user.getFinancialGoals());
+        response.setEmail(profile.getEmail());
+        response.setName((profile.getFirstName() != null ? profile.getFirstName() : "") + " " + (profile.getLastName() != null ? profile.getLastName() : ""));
+        response.setFirstName(profile.getFirstName());
+        response.setLastName(profile.getLastName());
+        response.setPhone(profile.getPhone());
+        response.setCurrency(profile.getCurrency());
+        response.setAvatarUrl(profile.getAvatarUrl());
+        
+        // Fetch MFA status from Auth Service on the fly
+        try {
+            AuthServiceClient.MfaStatusResponse mfaStatusResponse = authClient.getMfaStatus(profile.getEmail());
+            response.setMfaEnabled(mfaStatusResponse.isMfaEnabled());
+            logger.debug("MFA status fetched successfully for user {}: {}", profile.getEmail(), mfaStatusResponse.isMfaEnabled());
+        } catch (Exception e) {
+            logger.error("Failed to fetch MFA status for user: {}. Error: {}", profile.getEmail(), e.getMessage(), e);
+            // Default to false if we can't fetch the status
+            response.setMfaEnabled(false);
+        }
         return response;
     }
 }
