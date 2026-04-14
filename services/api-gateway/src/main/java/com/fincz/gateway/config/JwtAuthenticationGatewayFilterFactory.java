@@ -40,6 +40,6 @@ public class JwtAuthenticationGatewayFilterFactory extends AbstractGatewayFilter
 
     @Override
     public GatewayFilter apply(Object config) {
-        return jwtFilter;
+        return (exchange, chain) -> jwtFilter.filter(exchange, chain);
     }
 }

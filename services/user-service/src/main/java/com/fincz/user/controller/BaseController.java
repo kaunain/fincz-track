@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Fincz-Track
  */
 
-package com.fincz.portfolio.controller;
+package com.fincz.user.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -12,7 +12,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Base controller providing shared utility methods for portfolio-related operations.
+ * Base controller providing shared utility methods for user-related operations.
  * 
  * @author Gemini Code Assist
  * @since April 2026
