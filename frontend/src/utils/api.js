@@ -20,7 +20,7 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem('auth_token');
       window.location.href = '/login';
     }
@@ -36,6 +36,7 @@ export const authAPI = {
   changePassword: (data) => apiClient.put('/auth/change-password', data),
   setupMfa: () => apiClient.get('/auth/mfa/setup'),
   enableMfa: (code) => apiClient.post('/auth/mfa/enable', code, { headers: { 'Content-Type': 'text/plain' } }),
+  regenerateRecoveryCodes: () => apiClient.post('/auth/mfa/recovery-codes/regenerate'),
   disableMfa: () => apiClient.post('/auth/mfa/disable'),
   verifyMfa: (data) => apiClient.post('/auth/mfa/verify', data),
 };

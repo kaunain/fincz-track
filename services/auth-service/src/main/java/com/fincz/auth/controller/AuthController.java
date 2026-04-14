@@ -20,6 +20,9 @@ import com.fincz.auth.dto.*;
 import com.fincz.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -101,6 +104,14 @@ public class AuthController {
     public ResponseEntity<?> enableMfa(@AuthenticationPrincipal String email, @RequestBody String code) {
         service.enableMfa(email, code);
         return ResponseEntity.ok("MFA enabled successfully");
+    }
+
+    /**
+     * Regenerates MFA recovery codes for the authenticated user.
+     */
+    @PostMapping("/mfa/recovery-codes/regenerate")
+    public ResponseEntity<List<String>> regenerateRecoveryCodes(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(service.regenerateRecoveryCodes(email));
     }
 
     /**

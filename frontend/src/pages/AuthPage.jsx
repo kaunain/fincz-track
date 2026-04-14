@@ -18,6 +18,7 @@ const AuthPage = () => {
   const [isMfaStep, setIsMfaStep] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
   const [rememberDevice, setRememberDevice] = useState(false);
+  const [isUsingRecoveryCode, setIsUsingRecoveryCode] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -47,7 +48,7 @@ const AuthPage = () => {
         toast.success('Signup successful! Please login.');
       } else if (isMfaStep) {
         const response = await authAPI.verifyMfa({ email, code: mfaCode, rememberMe: rememberDevice });
-        const token = response.data.token;
+        const token = response.data.token || response.data.accessToken;
         
         // Save device token if returned by server
         const deviceToken = response.headers['x-device-token'];
@@ -127,19 +128,21 @@ const AuthPage = () => {
                 </div>
               </div>
               <p className="text-sm text-center text-gray-600 dark:text-gray-400 px-4">
-                Please enter the 6-digit verification code from your authenticator app.
+                {isUsingRecoveryCode 
+                  ? "Please enter one of your 8-character recovery codes." 
+                  : "Please enter the 6-digit verification code from your authenticator app."}
               </p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Verification Code
+                  {isUsingRecoveryCode ? "Recovery Code" : "Verification Code"}
                 </label>
                 <input
                   type="text"
                   value={mfaCode}
-                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                  className="w-full text-center text-2xl tracking-[0.5em] font-bold px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
-                  placeholder="000000"
-                  maxLength={6}
+                  onChange={(e) => setMfaCode(isUsingRecoveryCode ? e.target.value.toUpperCase() : e.target.value.replace(/\D/g, ''))}
+                  className={`w-full text-center text-2xl ${isUsingRecoveryCode ? 'tracking-normal' : 'tracking-[0.5em]'} font-bold px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition`}
+                  placeholder={isUsingRecoveryCode ? "ABC123DE" : "000000"}
+                  maxLength={isUsingRecoveryCode ? 8 : 6}
                   required
                 />
               </div>
@@ -155,6 +158,14 @@ const AuthPage = () => {
                   Trust this device for 30 days
                 </label>
               </div>
+
+              <button
+                type="button"
+                onClick={() => { setIsUsingRecoveryCode(!isUsingRecoveryCode); setMfaCode(''); }}
+                className="w-full text-xs text-primary hover:underline"
+              >
+                {isUsingRecoveryCode ? "Use Authenticator App" : "I lost my device, use a recovery code"}
+              </button>
             </div>
           ) : (
             <>

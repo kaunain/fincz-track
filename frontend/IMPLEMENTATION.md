@@ -142,6 +142,7 @@ GET    /market/price?symbol=XXX  # Market data
   "react-router-dom": "^6.20.0",
   "axios": "^1.6.2",
   "recharts": "^2.10.1",
+  "qrcode.react": "^3.1.0",
   "lucide-react": "^0.294.0",
   "tailwindcss": "^3.3.6",
   "vite": "^5.0.8"

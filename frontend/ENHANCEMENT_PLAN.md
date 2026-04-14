@@ -68,6 +68,7 @@
 | **Shadcn/ui** | Highly Recommended | Built on Radix UI. Provides accessible Data Tables, Modals, and Forms. |
 | **React Hook Form** | Essential | High-performance form handling without re-renders. |
 | **Zod** | Essential | Full type-safety from API to Form. |
+| **qrcode.react** | Essential | Local TOTP QR code generation for MFA security. |
 | **Lucide React** | Current | Keep for consistent, lightweight iconography. |
 | **Framer Motion** | Recommended | For "Fintech-grade" smooth transitions and micro-interactions. |
 | **Day.js / date-fns** | New | Financial apps need heavy date manipulation (FY calculations, SIP dates). |
