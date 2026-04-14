@@ -136,8 +136,8 @@ public class AuthController {
      * Internal endpoint for other services to check MFA status.
      */
     @GetMapping("/internal/mfa-status")
-    public ResponseEntity<MfaStatusResponse> getMfaStatusInternal(@RequestParam String email) {
-        return ResponseEntity.ok(service.getMfaStatus(email));
+    public boolean getMfaStatusInternal(@RequestParam String email) {
+        return service.getMfaStatus(email).isMfaEnabled();
     }
 
     /**

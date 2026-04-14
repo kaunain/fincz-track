@@ -36,6 +36,7 @@ const ProfileSettings = () => {
 
   useEffect(() => {
     if (user) {
+      console.log('User data updated:', { email: user.email, mfaEnabled: user.mfaEnabled });
       setProfile({
         name: user.name || '',
         email: user.email || '',
@@ -121,7 +122,16 @@ const ProfileSettings = () => {
     const loadingToast = toast.loading('Enabling MFA...');
     try {
       await authAPI.enableMfa(mfaCode);
+      
+      // Add a small delay to ensure backend has updated
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fetch updated user data
       await refreshUser();
+      
+      // Additional refresh to ensure UI updates with latest mfaEnabled value
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       toast.success('Two-Factor Authentication enabled!', { id: loadingToast });
       setIsMfaModalOpen(false);
       setMfaCode('');
@@ -148,7 +158,16 @@ const ProfileSettings = () => {
     const loadingToast = toast.loading('Disabling MFA...');
     try {
       await authAPI.disableMfa();
+      
+      // Add a small delay to ensure backend has updated
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fetch updated user data
       await refreshUser();
+      
+      // Additional refresh to ensure UI updates with latest mfaEnabled value
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       toast.success('Two-Factor Authentication disabled', { id: loadingToast });
       setIsDisableMfaModalOpen(false);
     } catch (error) {

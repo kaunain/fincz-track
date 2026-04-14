@@ -134,7 +134,7 @@ elif [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gatew
     cd "$SERVICE_DIR" || exit
     export JWT_SECRET
     export JWT_EXPIRATION
-    mvn spring-boot:run
+    mvn spring-boot:run -DskipTests
 
 elif [ "$SERVICE" = "both" ] || [ "$SERVICE" = "all" ]; then
     if [ "$SERVICE" = "all" ]; then
@@ -158,15 +158,15 @@ elif [ "$SERVICE" = "both" ] || [ "$SERVICE" = "all" ]; then
     export DB_PASS
 
     if [ "$SERVICE" = "all" ]; then
-        (cd services/auth-service && export DB_URL="jdbc:postgresql://localhost:5432/auth_db" && export SERVER_PORT=8081 && mvn spring-boot:run) &
-        (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && export SERVER_PORT=8082 && mvn spring-boot:run) &
-        (cd services/api-gateway && export SERVER_PORT=8080 && mvn spring-boot:run) &
-        (cd services/portfolio-service && export DB_URL="jdbc:postgresql://localhost:5432/portfolio_db" && export SERVER_PORT=8083 && mvn spring-boot:run) &
-        (cd services/market-data-service && export SERVER_PORT=8084 && mvn spring-boot:run) &
-        (cd services/notification-service && export DB_URL="jdbc:postgresql://localhost:5432/notification_db" && export SERVER_PORT=8085 && mvn spring-boot:run) &
+        (cd services/auth-service && export DB_URL="jdbc:postgresql://localhost:5432/auth_db" && export SERVER_PORT=8081 && mvn spring-boot:run -DskipTests) &
+        (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && export SERVER_PORT=8082 && mvn spring-boot:run -DskipTests) &
+        (cd services/api-gateway && export SERVER_PORT=8080 && mvn spring-boot:run -DskipTests) &
+        (cd services/portfolio-service && export DB_URL="jdbc:postgresql://localhost:5432/portfolio_db" && export SERVER_PORT=8083 && mvn spring-boot:run -DskipTests) &
+        (cd services/market-data-service && export SERVER_PORT=8084 && mvn spring-boot:run -DskipTests) &
+        (cd services/notification-service && export DB_URL="jdbc:postgresql://localhost:5432/notification_db" && export SERVER_PORT=8085 && mvn spring-boot:run -DskipTests) &
     else
-        (cd services/auth-service && export DB_URL="jdbc:postgresql://localhost:5432/auth_db" && mvn spring-boot:run) &
-        (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && mvn spring-boot:run) &
+        (cd services/auth-service && export DB_URL="jdbc:postgresql://localhost:5432/auth_db" && mvn spring-boot:run -DskipTests) &
+        (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && mvn spring-boot:run -DskipTests) &
     fi
     wait
 

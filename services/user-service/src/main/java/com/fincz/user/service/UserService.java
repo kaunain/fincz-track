@@ -101,9 +101,9 @@ public class UserService {
         
         // Fetch MFA status from Auth Service on the fly
         try {
-            AuthServiceClient.MfaStatusResponse mfaStatusResponse = authClient.getMfaStatus(profile.getEmail());
-            response.setMfaEnabled(mfaStatusResponse.isMfaEnabled());
-            logger.debug("MFA status fetched successfully for user {}: {}", profile.getEmail(), mfaStatusResponse.isMfaEnabled());
+            boolean mfaStatus = authClient.getMfaStatus(profile.getEmail());
+            response.setMfaEnabled(mfaStatus);
+            logger.debug("MFA status fetched successfully for user {}: {}", profile.getEmail(), mfaStatus);
         } catch (Exception e) {
             logger.error("Failed to fetch MFA status for user: {}. Error: {}", profile.getEmail(), e.getMessage(), e);
             // Default to false if we can't fetch the status
