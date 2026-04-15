@@ -4,6 +4,7 @@ import com.fincz.user.config.JwtProperties;
 import com.fincz.user.dto.*;
 import com.fincz.user.entity.User;
 import com.fincz.user.repository.UserRepository;
+import com.fincz.user.exception.UserException;
 import com.fincz.user.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -34,7 +35,7 @@ public class AuthService {
         String normalizedEmail = req.getEmail().toLowerCase();
 
         if (userRepository.findByEmail(normalizedEmail).isPresent()) {
-            throw new RuntimeException("Email already exists");
+            throw new UserException("Email already exists");
         }
 
         User user = new User();
@@ -60,10 +61,10 @@ public class AuthService {
     public AuthResponse login(LoginRequest req, String deviceToken) {
         String normalizedEmail = req.getEmail().toLowerCase();
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserException("User not found"));
 
         if (!encoder.matches(req.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid password");
+            throw new UserException("Invalid password");
         }
 
         if (user.isMfaEnabled()) {
@@ -93,7 +94,7 @@ public class AuthService {
     public MfaSetupResponse setupMfa(String email) {
         String normalizedEmail = email.toLowerCase();
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserException("User not found"));
 
         String secret = mfaService.generateSecret();
         user.setMfaSecret(secret);
@@ -117,7 +118,7 @@ public class AuthService {
     public MfaVerifyResponse verifyMfa(MfaVerifyRequest req) {
         String normalizedEmail = req.getEmail().toLowerCase();
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserException("User not found"));
 
         boolean verified = mfaService.verifyCode(user.getMfaSecret(), req.getCode());
 
@@ -133,7 +134,7 @@ public class AuthService {
         }
 
         if (!verified) {
-            throw new RuntimeException("Invalid verification code");
+            throw new UserException("Invalid verification code");
         }
 
         String accessToken = jwtUtil.generateToken(user.getEmail());
@@ -149,17 +150,17 @@ public class AuthService {
     @Transactional
     public void enableMfa(String email, String code) {
         User user = userRepository.findByEmail(email.toLowerCase())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserException("User not found"));
 
         if (user.getMfaSecret() == null) {
-            throw new RuntimeException("MFA setup not initiated. Please call setup first.");
+            throw new UserException("MFA setup not initiated. Please call setup first.");
         }
 
         if (mfaService.verifyCode(user.getMfaSecret(), code)) {
             user.setMfaEnabled(true);
             userRepository.save(user);
         } else {
-            throw new RuntimeException("Invalid verification code");
+            throw new UserException("Invalid verification code");
         }
     }
 
@@ -170,10 +171,10 @@ public class AuthService {
     public List<String> regenerateRecoveryCodes(String email) {
         String normalizedEmail = email.toLowerCase();
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserException("User not found"));
 
         if (!user.isMfaEnabled()) {
-            throw new RuntimeException("MFA must be enabled to regenerate recovery codes");
+            throw new UserException("MFA must be enabled to regenerate recovery codes");
         }
 
         List<String> codes = new ArrayList<>();
@@ -189,7 +190,7 @@ public class AuthService {
     @Transactional
     public void disableMfa(String email) {
         User user = userRepository.findByEmail(email.toLowerCase())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserException("User not found"));
 
         user.setMfaEnabled(false);
         user.setMfaSecret(null);
