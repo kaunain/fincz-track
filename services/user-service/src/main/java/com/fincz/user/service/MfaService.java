@@ -33,7 +33,7 @@ public class MfaService {
     private final QrGenerator qrGenerator = new ZxingPngQrGenerator();
     private final TimeProvider timeProvider = new SystemTimeProvider();
     private final CodeGenerator codeGenerator = new DefaultCodeGenerator();
-    private final CodeVerifier codeVerifier = new DefaultCodeVerifier(timeProvider, codeGenerator);
+    private final CodeVerifier codeVerifier = new DefaultCodeVerifier(codeGenerator, timeProvider);
 
     public String generateSecret() {
         return secretGenerator.generate();
@@ -49,6 +49,6 @@ public class MfaService {
     }
 
     public boolean verifyCode(String secret, String code) {
-        return codeVerifier.isValid(secret, code);
+        return codeVerifier.isValidCode(secret, code);
     }
 }
