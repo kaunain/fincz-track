@@ -18,8 +18,7 @@ Fincz-Track is a comprehensive microservices-based financial tracking applicatio
 | Service | Port | Status | Notes |
 |---------|------|--------|-------|
 | API Gateway | 8080 | ✅ Running | Routes all requests, handles JWT auth |
-| Auth Service | 8081 | ✅ Running | Signup/Login, JWT token generation |
-| User Service | 8082 | ✅ Running | User profiles, field management |
+| User Service | 8082 | ✅ Running | Consolidated: Auth, Profiles, MFA |
 | Portfolio Service | 8083 | ✅ Running | Investment tracking, net worth calculations |
 | Market Data Service | 8084 | ✅ Running | Stock price lookups (requires DB seeding) |
 | Notification Service | 8085 | ❌ Not Running | Compilation issues (Lombok processor) |

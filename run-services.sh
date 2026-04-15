@@ -22,8 +22,8 @@ fi
 
 # Check if service name is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 {auth|user|gateway|portfolio|market|notification|all|stop}"
-    echo "Example: $0 auth"
+    echo "Usage: $0 {user|gateway|portfolio|market|notification|all|stop}"
+    echo "Example: $0 user"
     echo "Example: $0 all         # run all services in parallel"
     echo "Example: $0 stop        # stop all running services"
     exit 1
@@ -58,7 +58,7 @@ fi
 
 # 🗄️ Validate Database configuration (required for database services)
 case "$SERVICE" in
-    auth|user|portfolio|notification|all)
+    user|portfolio|notification|all)
         check_required_env "DB_URL" || exit 1
         check_required_env "DB_USER" || exit 1
         check_required_env "DB_PASS" || exit 1
@@ -81,20 +81,15 @@ if [ "$SERVICE" = "stop" ]; then
     pkill -f "spring-boot:run" 2>/dev/null || true
 
     # Kill processes on specific ports
-    for port in 8080 8081 8082 8083 8084 8085; do
+    for port in 8080 8082 8083 8084 8085; do
         lsof -ti:$port | xargs kill -9 2>/dev/null || true
     done
 
     echo "✅ All services stopped successfully"
     exit 0
 
-elif [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway" ] || [ "$SERVICE" = "portfolio" ] || [ "$SERVICE" = "market" ] || [ "$SERVICE" = "notification" ]; then
-    if [ "$SERVICE" = "auth" ]; then
-        export DB_URL="jdbc:postgresql://localhost:5432/auth_db"
-        export SERVER_PORT=8081
-        SERVICE_NAME="Auth Service"
-        SERVICE_DIR="services/auth-service"
-    elif [ "$SERVICE" = "user" ]; then
+elif [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway" ] || [ "$SERVICE" = "portfolio" ] || [ "$SERVICE" = "market" ] || [ "$SERVICE" = "notification" ]; then
+    if [ "$SERVICE" = "user" ]; then
         export DB_URL="jdbc:postgresql://localhost:5432/user_db"
         export SERVER_PORT=8082
         SERVICE_NAME="User Service"
@@ -136,20 +131,12 @@ elif [ "$SERVICE" = "auth" ] || [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gatew
     export JWT_EXPIRATION
     mvn spring-boot:run -DskipTests
 
-elif [ "$SERVICE" = "both" ] || [ "$SERVICE" = "all" ]; then
-    if [ "$SERVICE" = "all" ]; then
-        echo "------------------------------------------------"
-        echo "🚀 Starting ALL Services (Auth, User, Gateway, Portfolio, Market, Notification) ..."
-        echo "🔑 JWT Secret: [HIDDEN]"
-        echo "📅 Expiration: $JWT_EXPIRATION ms"
-        echo "------------------------------------------------"
-    else
-        echo "------------------------------------------------"
-        echo "🚀 Starting Auth Service and User Service (both) ..."
-        echo "🔑 JWT Secret: [HIDDEN]"
-        echo "📅 Expiration: $JWT_EXPIRATION ms"
-        echo "------------------------------------------------"
-    fi
+elif [ "$SERVICE" = "all" ]; then
+    echo "------------------------------------------------"
+    echo "🚀 Starting ALL Services (User, Gateway, Portfolio, Market, Notification) ..."
+    echo "🔑 JWT Secret: [HIDDEN]"
+    echo "📅 Expiration: $JWT_EXPIRATION ms"
+    echo "------------------------------------------------"
 
     # Export variables for subshells
     export JWT_SECRET
@@ -157,20 +144,14 @@ elif [ "$SERVICE" = "both" ] || [ "$SERVICE" = "all" ]; then
     export DB_USER
     export DB_PASS
 
-    if [ "$SERVICE" = "all" ]; then
-        (cd services/auth-service && export DB_URL="jdbc:postgresql://localhost:5432/auth_db" && export SERVER_PORT=8081 && mvn spring-boot:run -DskipTests) &
-        (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && export SERVER_PORT=8082 && mvn spring-boot:run -DskipTests) &
-        (cd services/api-gateway && export SERVER_PORT=8080 && mvn spring-boot:run -DskipTests) &
-        (cd services/portfolio-service && export DB_URL="jdbc:postgresql://localhost:5432/portfolio_db" && export SERVER_PORT=8083 && mvn spring-boot:run -DskipTests) &
-        (cd services/market-data-service && export SERVER_PORT=8084 && mvn spring-boot:run -DskipTests) &
-        (cd services/notification-service && export DB_URL="jdbc:postgresql://localhost:5432/notification_db" && export SERVER_PORT=8085 && mvn spring-boot:run -DskipTests) &
-    else
-        (cd services/auth-service && export DB_URL="jdbc:postgresql://localhost:5432/auth_db" && mvn spring-boot:run -DskipTests) &
-        (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && mvn spring-boot:run -DskipTests) &
-    fi
+    (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && export SERVER_PORT=8082 && mvn spring-boot:run -DskipTests) &
+    (cd services/api-gateway && export SERVER_PORT=8080 && mvn spring-boot:run -DskipTests) &
+    (cd services/portfolio-service && export DB_URL="jdbc:postgresql://localhost:5432/portfolio_db" && export SERVER_PORT=8083 && mvn spring-boot:run -DskipTests) &
+    (cd services/market-data-service && export SERVER_PORT=8084 && mvn spring-boot:run -DskipTests) &
+    (cd services/notification-service && export DB_URL="jdbc:postgresql://localhost:5432/notification_db" && export SERVER_PORT=8085 && mvn spring-boot:run -DskipTests) &
     wait
 
 else
-    echo "Invalid service name. Use 'auth', 'user', 'gateway', 'portfolio', 'market', 'notification', 'all', or 'stop'."
+    echo "Invalid service name. Use 'user', 'gateway', 'portfolio', 'market', 'notification', 'all', or 'stop'."
     exit 1
 fi

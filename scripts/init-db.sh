@@ -33,13 +33,23 @@ EOSQL
 
 # --- Schema Definitions ---
 
-AUTH_SCHEMA=$(cat <<'EOF'
+USER_SCHEMA=$(cat <<'EOF'
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
+    name VARCHAR(100),
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
     role VARCHAR(50) DEFAULT 'ROLE_USER',
+    phone VARCHAR(20),
+    age INTEGER,
+    occupation VARCHAR(100),
+    financial_goals TEXT,
+    address TEXT,
+    city VARCHAR(50),
+    currency VARCHAR(10) DEFAULT 'INR',
+    avatar_url VARCHAR(255),
     mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     mfa_secret VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -52,32 +62,6 @@ CREATE TABLE IF NOT EXISTS user_recovery_codes (
     recovery_code VARCHAR(255) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_user_recovery_codes_user_id ON user_recovery_codes(user_id);
-EOF
-)
-
-USER_SCHEMA=$(cat <<'EOF'
-CREATE TABLE IF NOT EXISTS user_profiles (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    phone VARCHAR(20),
-    age INTEGER,
-    occupation VARCHAR(100),
-    financial_goals TEXT,
-    address TEXT,
-    city VARCHAR(50),
-    state VARCHAR(50),
-    country VARCHAR(50),
-    postal_code VARCHAR(20),
-    currency VARCHAR(10) DEFAULT 'INR',
-    avatar_url VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);
 EOF
 )
 
@@ -120,9 +104,8 @@ EOF
 )
 
 # --- Execute Initialization ---
-for db in "auth_db" "user_db" "portfolio_db" "notification_db"; do
+for db in "user_db" "portfolio_db" "notification_db"; do
     case $db in
-        auth_db)         init_service_db "$db" "$AUTH_SCHEMA" ;;
         user_db)         init_service_db "$db" "$USER_SCHEMA" ;;
         portfolio_db)    init_service_db "$db" "$PORTFOLIO_SCHEMA" ;;
         notification_db) init_service_db "$db" "$NOTIFICATION_SCHEMA" ;;
