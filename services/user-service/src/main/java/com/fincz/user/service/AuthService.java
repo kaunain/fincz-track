@@ -151,6 +151,10 @@ public class AuthService {
         User user = userRepository.findByEmail(email.toLowerCase())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        if (user.getMfaSecret() == null) {
+            throw new RuntimeException("MFA setup not initiated. Please call setup first.");
+        }
+
         if (mfaService.verifyCode(user.getMfaSecret(), code)) {
             user.setMfaEnabled(true);
             userRepository.save(user);

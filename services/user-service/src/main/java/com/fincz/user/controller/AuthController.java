@@ -47,18 +47,18 @@ public class AuthController {
     }
 
     @GetMapping("/mfa/setup")
-    public ResponseEntity<MfaSetupResponse> setupMfa(@RequestAttribute("email") String email) {
+    public ResponseEntity<MfaSetupResponse> setupMfa(@RequestHeader("X-User-Email") String email) {
         return ResponseEntity.ok(authService.setupMfa(email));
     }
 
     @PostMapping("/mfa/enable")
-    public ResponseEntity<?> enableMfa(@RequestAttribute("email") String email, @Valid @RequestBody MfaRequest req) {
+    public ResponseEntity<?> enableMfa(@RequestHeader("X-User-Email") String email, @Valid @RequestBody MfaRequest req) {
         authService.enableMfa(email, req.getCode());
         return ResponseEntity.ok("MFA enabled");
     }
 
     @PostMapping("/mfa/disable")
-    public ResponseEntity<?> disableMfa(@RequestAttribute("email") String email) {
+    public ResponseEntity<?> disableMfa(@RequestHeader("X-User-Email") String email) {
         authService.disableMfa(email);
         return ResponseEntity.ok("MFA disabled");
     }
@@ -69,7 +69,7 @@ public class AuthController {
     }
 
     @PostMapping("/mfa/recovery-codes/regenerate")
-    public ResponseEntity<List<String>> regenerateRecoveryCodes(@RequestAttribute("email") String email) {
+    public ResponseEntity<List<String>> regenerateRecoveryCodes(@RequestHeader("X-User-Email") String email) {
         return ResponseEntity.ok(authService.regenerateRecoveryCodes(email));
     }
 }
