@@ -1,21 +1,16 @@
-/*
- * Copyright (c) 2026 Fincz-Track
- */
-
-package com.fincz.auth.dto;
+package com.fincz.user.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.util.List;
 
 /**
- * DTO for MFA setup details, including recovery codes.
+ * DTO for MFA setup response containing the secret and QR code URL.
  */
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 public class MfaSetupResponse {
     private String secret;
     private String qrCodeUrl;

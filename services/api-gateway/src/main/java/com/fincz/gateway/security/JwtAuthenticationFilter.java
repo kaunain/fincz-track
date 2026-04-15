@@ -56,6 +56,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         "/api/auth/signup",
         "/api/auth/mfa/verify",
         "/api/auth/test",
+        "/api/users/test",
         "/test"
     );
 

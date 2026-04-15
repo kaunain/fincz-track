@@ -48,23 +48,6 @@ public class UserController extends BaseController {
     private final UserService service;
 
     /**
-     * Creates a new user profile (for testing purposes).
-     * In production, this would be handled through service-to-service communication.
-     */
-    @PostMapping("/profile")
-    public ResponseEntity<UserResponse> createProfile(@Valid @RequestBody SignupRequest request) {
-        logger.info("Creating user profile for email: {}", request.getEmail());
-        try {
-            UserResponse response = service.createProfile(request.getEmail(), request.getName());
-            logger.info("User profile created successfully for email: {}", request.getEmail());
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Failed to create user profile for email: {}", request.getEmail(), e);
-            throw e;
-        }
-    }
-
-    /**
      * Retrieves the profile of the currently authenticated user.
      */
     @GetMapping("/me")
