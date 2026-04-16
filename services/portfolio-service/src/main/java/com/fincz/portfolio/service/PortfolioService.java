@@ -21,8 +21,8 @@ import com.fincz.portfolio.exception.PortfolioException;
 import com.fincz.portfolio.exception.PortfolioNotFoundException;
 import com.fincz.portfolio.dto.NetWorthResponse;
 import com.fincz.portfolio.dto.PortfolioResponse;
-import com.fincz.portfolio.entity.Portfolio;
-import com.fincz.portfolio.repository.PortfolioRepository;
+import com.fincz.portfolio.entity.Investment;
+import com.fincz.portfolio.repository.InvestmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +46,7 @@ public class PortfolioService {
 
     private static final Logger logger = LoggerFactory.getLogger(PortfolioService.class);
 
-    private final PortfolioRepository repository;
+    private final InvestmentRepository repository;
 
     /**
      * Adds a new investment to user's portfolio.
@@ -58,18 +58,18 @@ public class PortfolioService {
         
         if (userEmail == null) throw new PortfolioException("User email is required");
 
-        Portfolio portfolio = new Portfolio();
-        portfolio.setUserEmail(userEmail);
-        portfolio.setType(request.getType());
-        portfolio.setName(request.getName());
-        portfolio.setSymbol(request.getSymbol());
-        portfolio.setUnits(request.getUnits());
-        portfolio.setBuyPrice(request.getBuyPrice());
+        Investment investment = Investment.builder()
+                .userEmail(userEmail)
+                .type(request.getType())
+                .name(request.getName())
+                .symbol(request.getSymbol())
+                .units(request.getUnits())
+                .buyPrice(request.getBuyPrice())
+                .currentPrice(request.getBuyPrice()) // Default current to buy price initially
+                .purchaseDate(request.getPurchaseDate())
+                .build();
 
-        // For now, set current price same as buy price
-        portfolio.setCurrentPrice(request.getBuyPrice());
-
-        Portfolio saved = repository.save(portfolio);
+        Investment saved = repository.save(investment);
         logger.info("Successfully saved investment for user {}: id={}", userEmail, saved.getId());
         return mapToResponse(saved);
     }
@@ -132,21 +132,9 @@ public class PortfolioService {
     @Transactional
     public void updateCurrentPrices(String symbol, BigDecimal currentPrice) {
         logger.info("Updating current prices for symbol {} to {}", symbol, currentPrice);
-
         try {
-            List<Portfolio> holdings = repository.findAll().stream()
-                    .filter(p -> p.getSymbol().equals(symbol))
-                    .collect(Collectors.toList());
-
-            logger.debug("Found {} holdings for symbol {}", holdings.size(), symbol);
-
-            for (Portfolio holding : holdings) {
-                holding.setCurrentPrice(currentPrice);
-                repository.save(holding);
-                logger.debug("Updated holding id {} for user {}", holding.getId(), holding.getUserEmail());
-            }
-
-            logger.info("Successfully updated {} holdings for symbol {}", holdings.size(), symbol);
+            int updatedCount = repository.updatePriceBySymbol(symbol, currentPrice);
+            logger.info("Successfully updated {} holdings for symbol {}", updatedCount, symbol);
         } catch (Exception e) {
             logger.error("Failed to update current prices for symbol {}: {}", symbol, e.getMessage(), e);
             throw e;
@@ -160,24 +148,25 @@ public class PortfolioService {
     public PortfolioResponse updateInvestment(Long id, String userEmail, AddInvestmentRequest request) {
         logger.info("Updating investment {} for user {}", id, userEmail);
 
-        Portfolio portfolio = repository.findById(id)
+        Investment investment = repository.findById(id)
                 .orElseThrow(() -> new PortfolioNotFoundException(id));
 
-        if (userEmail == null || !portfolio.getUserEmail().equalsIgnoreCase(userEmail)) {
+        if (userEmail == null || !investment.getUserEmail().equalsIgnoreCase(userEmail)) {
             logger.warn("Unauthorized update attempt: user {} tried to update investment {} owned by {}", 
-                    userEmail, id, portfolio.getUserEmail());
+                    userEmail, id, investment.getUserEmail());
             throw new PortfolioException("Unauthorized: You do not own this investment");
         }
 
-        portfolio.setName(request.getName());
-        portfolio.setSymbol(request.getSymbol());
-        portfolio.setType(request.getType());
-        portfolio.setUnits(request.getUnits());
-        portfolio.setBuyPrice(request.getBuyPrice());
+        investment.setName(request.getName());
+        investment.setSymbol(request.getSymbol());
+        investment.setType(request.getType());
+        investment.setUnits(request.getUnits());
+        investment.setBuyPrice(request.getBuyPrice());
+        investment.setPurchaseDate(request.getPurchaseDate());
         // In a real app, current price might stay same or fetch latest
-        portfolio.setCurrentPrice(request.getBuyPrice());
+        investment.setCurrentPrice(request.getBuyPrice());
 
-        Portfolio saved = repository.save(portfolio);
+        Investment saved = repository.save(investment);
         logger.info("Successfully updated investment {} for user {}", id, userEmail);
         return mapToResponse(saved);
     }
@@ -189,31 +178,41 @@ public class PortfolioService {
     public void deleteInvestment(Long id, String userEmail) {
         logger.info("Deleting investment {} for user {}", id, userEmail);
 
-        Portfolio portfolio = repository.findById(id)
+        Investment investment = repository.findById(id)
                 .orElseThrow(() -> new PortfolioNotFoundException(id));
 
-        if (userEmail == null || !portfolio.getUserEmail().equalsIgnoreCase(userEmail)) {
+        if (userEmail == null || !investment.getUserEmail().equalsIgnoreCase(userEmail)) {
             throw new PortfolioException("Unauthorized: You do not own this investment");
         }
 
-        repository.delete(portfolio);
+        repository.delete(investment);
     }
 
-    private PortfolioResponse mapToResponse(Portfolio portfolio) {
+    private PortfolioResponse mapToResponse(Investment investment) {
+        BigDecimal totalInvestment = investment.getTotalInvestment();
+        BigDecimal currentValue = investment.getCurrentValue();
+        BigDecimal pnl = currentValue.subtract(totalInvestment);
+        BigDecimal pnlPercentage = BigDecimal.ZERO;
+
+        if (totalInvestment.compareTo(BigDecimal.ZERO) != 0) {
+            pnlPercentage = pnl.divide(totalInvestment, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+        }
+
         return new PortfolioResponse(
-                portfolio.getId(),
-                portfolio.getType(),
-                portfolio.getName(),
-                portfolio.getSymbol(),
-                portfolio.getUnits(),
-                portfolio.getBuyPrice(),
-                portfolio.getCurrentPrice(),
-                portfolio.getTotalInvestment(),
-                portfolio.getCurrentValue(),
-                portfolio.getPnl(),
-                portfolio.getPnlPercentage(),
-                portfolio.getCreatedAt(),
-                portfolio.getUpdatedAt()
+                investment.getId(),
+                investment.getType(),
+                investment.getName(),
+                investment.getSymbol(),
+                investment.getUnits(),
+                investment.getBuyPrice(),
+                investment.getCurrentPrice(),
+                totalInvestment,
+                currentValue,
+                pnl,
+                pnlPercentage,
+                investment.getCreatedAt(),
+                investment.getUpdatedAt()
         );
     }
 }

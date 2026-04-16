@@ -22,6 +22,7 @@ const AddInvestment = () => {
     type: 'stock',
     units: '',
     buyPrice: '',
+    purchaseDate: new Date().toISOString().split('T')[0],
   });
 
   useEffect(() => {
@@ -32,6 +33,7 @@ const AddInvestment = () => {
         type: editData.type || 'stock',
         units: editData.units?.toString() || '',
         buyPrice: editData.buyPrice?.toString() || '',
+        purchaseDate: editData.purchaseDate || new Date().toISOString().split('T')[0],
       });
     }
   }, [isEdit, editData]);
@@ -57,6 +59,7 @@ const AddInvestment = () => {
         type: formData.type,
         units: parseFloat(formData.units),
         buyPrice: parseFloat(formData.buyPrice),
+        purchaseDate: formData.purchaseDate,
       };
 
       if (isEdit && editData?.id) {
@@ -73,6 +76,7 @@ const AddInvestment = () => {
         type: 'stock',
         units: '',
         buyPrice: '',
+        purchaseDate: new Date().toISOString().split('T')[0],
       });
 
       setTimeout(() => {
@@ -174,11 +178,29 @@ const AddInvestment = () => {
               >
                 <option value="stock">Stock</option>
                 <option value="mf">Mutual Fund</option>
+                <option value="elss">ELSS (Tax Saving MF)</option>
                 <option value="nps">NPS</option>
+                <option value="ppf">PPF</option>
+                <option value="lic">LIC / Insurance</option>
                 <option value="gold">Gold</option>
                 <option value="crypto">Cryptocurrency</option>
                 <option value="bond">Bond</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Purchase Date
+              </label>
+              <input
+                type="date"
+                name="purchaseDate"
+                value={formData.purchaseDate}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                max={new Date().toISOString().split('T')[0]}
+                required
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

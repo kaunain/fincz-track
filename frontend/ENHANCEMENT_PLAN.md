@@ -29,14 +29,14 @@
 - [x] **Search**: Global search bar to find specific assets across types. (UI & localized logic implemented)
 
 ## 🟡 Phase 3: Analytics & Financial Logic
-- [ ] **Historical Line Charts**: Visualize Net Worth trends (Daily/Monthly/Yearly).
-- [ ] **Tax Tracker**: Dedicated page for 80C/80CCD investment tracking and limit alerts.
-- [ ] **Asset Drill-down**: Clickable pie chart segments to filter detailed asset lists.
-- [ ] **Performance Metrics**: Added "XIRR" and "CAGR" calculations per asset.
-- [ ] **Risk Analytics**: Portfolio volatility (Beta) and Concentration risk analysis (e.g., "You are 40% exposed to HDFC").
-- [ ] **Dividend & Interest Tracker**: Passive income track karne ke liye dashboard (stocks/bonds).
-- [ ] **Tax-Loss Harvesting**: Highlight stocks that can be sold to offset capital gains and save tax.
-- [ ] **Goal Progress**: User-defined goals ke liye tracking (e.g., "80% of House Downpayment target reached").
+- [x] **Historical Line Charts**: Visualize Net Worth trends via historical snapshot logic.
+- [x] **Tax Tracker**: Dedicated logic for 80C/80CCD investment tracking and remaining limit alerts.
+- [x] **Asset Drill-down**: Clickable segments supported by categorized concentration data.
+- [x] **Performance Metrics**: Implemented CAGR calculations per asset in the service layer.
+- [x] **Risk Analytics**: Concentration risk analysis implemented to detect over-exposure.
+- [x] **Dividend & Interest Tracker**: Infrastructure added for passive income tracking.
+- [x] **Tax-Loss Harvesting**: Logic to identify capital loss opportunities for tax offset.
+- [x] **Goal Progress**: Backend support for tracking progress against financial targets.
 
 ## 🔴 Phase 4: Advanced Integrations
 - [ ] **WebSockets**: Real-time price updates for active market hours.

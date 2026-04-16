@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { portfolioAPI } from '../utils/api';
@@ -13,9 +13,12 @@ import { formatCurrency } from '../utils/formatters';
 import { calculateInvestmentValue } from '../utils/portfolioUtils';
 import { downloadCSV } from '../utils/exportUtils';
 
+const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
+
 const ReportsPage = () => {
   const navigate = useNavigate();
   const [portfolio, setPortfolio] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,8 +46,8 @@ const ReportsPage = () => {
       
       // Handle calculated values
       if (sortConfig.key === 'totalValue') {
-        aValue = calculateInvestmentValue(a.units, a.buyPrice);
-        bValue = calculateInvestmentValue(b.units, b.buyPrice);
+        aValue = parseFloat(a.currentValue || 0);
+        bValue = parseFloat(b.currentValue || 0);
       }
 
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -66,7 +69,7 @@ const ReportsPage = () => {
     name: item.name,
     investment: parseFloat(item.buyPrice),
     units: parseFloat(item.units),
-    total: calculateInvestmentValue(item.units, item.buyPrice),
+    total: parseFloat(item.currentValue || 0),
   })) : [], [portfolio]);
 
   const investmentByType = useMemo(() => portfolio
@@ -76,13 +79,36 @@ const ReportsPage = () => {
           acc[item.type] = { type: item.type, count: 0, value: 0 };
         }
         acc[item.type].count += 1;
-        acc[item.type].value += calculateInvestmentValue(item.units, item.buyPrice);
+        acc[item.type].value += parseFloat(item.currentValue || 0);
         return acc;
       }, {})
     )
     : [], [portfolio]);
 
+  const concentrationData = useMemo(() => {
+    if (!analytics || !analytics.concentrationRisk) return [];
+    return Object.entries(analytics.concentrationRisk).map(([name, value]) => ({
+      name: name.toUpperCase(),
+      value: value,
+    }));
+  }, [analytics]);
+
   const totalPortfolioValue = useMemo(() => chartData.reduce((sum, item) => sum + item.total, 0), [chartData]);
+
+  const taxStats = useMemo(() => {
+    const total80C = parseFloat(analytics?.taxSummary?.totalInvested80C || 0);
+    const remaining80C = parseFloat(analytics?.taxSummary?.remaining80CLimit || 0);
+    const total80CCD = parseFloat(analytics?.taxSummary?.totalInvested80CCD || 0);
+    const remaining80CCD = parseFloat(analytics?.taxSummary?.remaining80CCDLimit || 0);
+    return { 
+      total80C, 
+      remaining80C, 
+      progress80C: Math.min((total80C / 150000) * 100, 100),
+      total80CCD,
+      remaining80CCD,
+      progress80CCD: Math.min((total80CCD / 50000) * 100, 100)
+    };
+  }, [analytics]);
 
   useEffect(() => {
     fetchPortfolioData();
@@ -91,8 +117,13 @@ const ReportsPage = () => {
   const fetchPortfolioData = async () => {
     try {
       setLoading(true);
-      const response = await portfolioAPI.getPortfolio();
-      setPortfolio(response.data);
+      const [portfolioRes, analyticsRes] = await Promise.all([
+        portfolioAPI.getPortfolio(),
+        portfolioAPI.getAnalyticsSummary(),
+      ]);
+
+      setPortfolio(portfolioRes.data);
+      setAnalytics(analyticsRes.data);
     } catch (err) {
       console.error('Reports data error:', err);
       let errorMessage = 'Failed to load reports';
@@ -142,7 +173,7 @@ const ReportsPage = () => {
       item.type,
       item.units,
       item.buyPrice,
-      calculateInvestmentValue(item.units, item.buyPrice).toFixed(2)
+      parseFloat(item.currentValue || 0).toFixed(2)
     ]);
 
     downloadCSV(rows, headers, `fincz_portfolio_report_${new Date().toISOString().split('T')[0]}.csv`);
@@ -173,7 +204,7 @@ const ReportsPage = () => {
         )}
 
         {/* Summary Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Investments</p>
             <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">{portfolio?.length || 0}</p>
@@ -196,10 +227,86 @@ const ReportsPage = () => {
               {portfolio?.filter(item => item.type === 'mf').length || 0}
             </p>
           </Card>
+          <Card loading={loading}>
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Tax Saving (80C)</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">₹{formatCurrency(taxStats.total80C)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-400 uppercase font-bold">Limit: 1.5L</p>
+                <p className="text-xs font-semibold text-orange-500 mt-1">₹{formatCurrency(taxStats.remaining80C)} left</p>
+              </div>
+            </div>
+            <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${taxStats.progress80C}%` }}
+                className="bg-blue-600 h-full rounded-full"
+              ></motion.div>
+            </div>
+          </Card>
+          <Card loading={loading}>
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">NPS Extra (80CCD)</p>
+                <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">₹{formatCurrency(taxStats.total80CCD)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-400 uppercase font-bold">Limit: 50K</p>
+                <p className="text-xs font-semibold text-orange-500 mt-1">₹{formatCurrency(taxStats.remaining80CCD)} left</p>
+              </div>
+            </div>
+            <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${taxStats.progress80CCD}%` }}
+                className="bg-indigo-600 h-full rounded-full"
+              ></motion.div>
+            </div>
+          </Card>
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* Concentration Risk Chart */}
+          <Card title="Concentration Risk" loading={loading}>
+            {concentrationData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={concentrationData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {concentrationData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value) => [`${value.toFixed(1)}%`, 'Allocation']}
+                    contentStyle={{ 
+                      backgroundColor: theme === 'dark' ? '#1f2937' : '#fff',
+                      borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
+                      borderRadius: '8px',
+                      color: theme === 'dark' ? '#f3f4f6' : '#111827'
+                    }}
+                    itemStyle={{ color: theme === 'dark' ? '#f3f4f6' : '#111827' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-80 flex items-center justify-center">
+                <p className="text-gray-500 dark:text-gray-400">No risk data available</p>
+              </div>
+            )}
+          </Card>
+
           {/* Investment Value by Asset */}
           <Card title="Investment Value by Asset" loading={loading}>
             {chartData.length > 0 ? (
@@ -328,7 +435,7 @@ const ReportsPage = () => {
                         ₹{formatCurrency(parseFloat(item.buyPrice))}
                       </td>
                       <td className="px-6 py-4 text-right font-semibold text-blue-600 dark:text-blue-400">
-                        ₹{formatCurrency(calculateInvestmentValue(item.units, item.buyPrice))}
+                        ₹{formatCurrency(item.currentValue)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center gap-2">
