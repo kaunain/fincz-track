@@ -20,8 +20,11 @@ import com.fincz.market.dto.StockPriceResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -43,6 +46,11 @@ public class MarketDataService {
     private static final Logger logger = LoggerFactory.getLogger(MarketDataService.class);
 
     private final Random random = new Random();
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @Value("${fincz.portfolio-service.url:http://portfolio-service:8083}")
+    private String portfolioServiceUrl;
 
     // Mock data for Indian stocks
     private static final Map<String, String> STOCK_NAMES = Map.of(
@@ -110,6 +118,16 @@ public class MarketDataService {
     }
 
     /**
+     * Scheduled task to update prices for all tracked symbols.
+     * Runs every 15 minutes.
+     */
+    @Scheduled(fixedRate = 900000)
+    public void scheduledPriceUpdate() {
+        logger.info("Starting scheduled price update for all tracked symbols");
+        BASE_PRICES.keySet().forEach(this::updatePortfolioPrices);
+    }
+
+    /**
      * Updates portfolio service with latest prices.
      * This would be called periodically or on demand.
      */
@@ -117,8 +135,15 @@ public class MarketDataService {
         logger.info("Updating portfolio prices for symbol: {}", symbol);
 
         try {
-            // In a real implementation, this would call the portfolio service
-            // to update current prices for all holdings of this symbol
+            // 1. Get current price (mocked)
+            StockPriceResponse priceData = getStockPrice(symbol);
+            BigDecimal currentPrice = priceData.getPrice();
+
+            // 2. Call Portfolio Service internal endpoint to update all user holdings
+            String url = portfolioServiceUrl + "/portfolio/internal/prices/" + symbol + "?price=" + currentPrice;
+            
+            restTemplate.put(url, null);
+
             logger.debug("Portfolio price update completed for symbol: {}", symbol);
         } catch (Exception e) {
             logger.error("Failed to update portfolio prices for symbol {}: {}", symbol, e.getMessage(), e);

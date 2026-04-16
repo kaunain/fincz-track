@@ -17,14 +17,23 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [portfolio, setPortfolio] = useState(null);
   const [netWorth, setNetWorth] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { theme } = useTheme();
 
   const chartData = useMemo(() => portfolio ? portfolio.map(item => ({
     name: item.name,
-    value: calculateInvestmentValue(item.units, item.buyPrice),
+    value: parseFloat(item.currentValue || 0),
   })) : [], [portfolio]);
+
+  const concentrationData = useMemo(() => {
+    if (!analytics || !analytics.concentrationRisk) return [];
+    return Object.entries(analytics.concentrationRisk).map(([name, value]) => ({
+      name: name.toUpperCase(),
+      value: value,
+    }));
+  }, [analytics]);
 
   const totalValue = useMemo(() => chartData.reduce((sum, item) => sum + item.value, 0), [chartData]);
   const profitLoss = useMemo(() => netWorth ? parseFloat(netWorth.totalPnl || 0) : 0, [netWorth]);
@@ -56,8 +65,18 @@ const Dashboard = () => {
       });
     }
 
+    // Tax-Loss Harvesting Insight
+    if (analytics?.taxLossOpportunities?.length > 0) {
+      const totalPotentialOffset = analytics.taxLossOpportunities.reduce((sum, opp) => sum + parseFloat(opp.unrealizedLoss || 0), 0);
+      list.push({
+        type: 'info',
+        icon: Info,
+        text: `Tax-Loss Harvesting: Found ${analytics.taxLossOpportunities.length} opportunities to offset capital gains (Potential: ₹${formatCurrency(totalPotentialOffset)}).`
+      });
+    }
+
     return list;
-  }, [portfolio, chartData, totalValue]);
+  }, [portfolio, chartData, totalValue, analytics]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -66,13 +85,15 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [portfolioRes, netWorthRes] = await Promise.all([
+      const [portfolioRes, netWorthRes, analyticsRes] = await Promise.all([
         portfolioAPI.getPortfolio(),
         portfolioAPI.getNetWorth(),
+        portfolioAPI.getAnalyticsSummary(),
       ]);
 
       setPortfolio(portfolioRes.data);
       setNetWorth(netWorthRes.data);
+      setAnalytics(analyticsRes.data);
     } catch (err) {
       console.error('Dashboard data error:', err);
       let errorMessage = 'Failed to load dashboard data';
@@ -190,7 +211,45 @@ const Dashboard = () => {
         )}
 
         {/* Portfolio Visualization */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Concentration Risk Chart */}
+          <Card title="Concentration Risk" loading={loading}>
+            {concentrationData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={concentrationData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {concentrationData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value) => [`${value.toFixed(1)}%`, 'Allocation']}
+                    contentStyle={{ 
+                      backgroundColor: theme === 'dark' ? '#1f2937' : '#fff',
+                      borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
+                      borderRadius: '8px',
+                      color: theme === 'dark' ? '#f3f4f6' : '#111827'
+                    }}
+                    itemStyle={{ color: theme === 'dark' ? '#f3f4f6' : '#111827' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-80 flex items-center justify-center">
+                <p className="text-gray-500 dark:text-gray-400">Add diversified investments to see risk analysis.</p>
+              </div>
+            )}
+          </Card>
+
           {/* Pie Chart */}
           <Card title="Asset Allocation" loading={loading}>
             {chartData.length > 0 ? (
@@ -242,7 +301,7 @@ const Dashboard = () => {
                     </div>
                     <div className="flex items-center gap-4">
                       <p className="text-lg font-bold text-primary dark:text-blue-400">
-                        ₹{formatCurrency(calculateInvestmentValue(item.units, item.buyPrice))}
+                        ₹{formatCurrency(item.currentValue)}
                       </p>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 

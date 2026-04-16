@@ -17,16 +17,19 @@
 package com.fincz.portfolio.controller;
 
 import com.fincz.portfolio.dto.AddInvestmentRequest;
+import com.fincz.portfolio.dto.AnalyticsResponse;
 import com.fincz.portfolio.dto.NetWorthResponse;
 import com.fincz.portfolio.dto.PortfolioResponse;
+import com.fincz.portfolio.service.FinancialAnalyticsService;
 import com.fincz.portfolio.service.PortfolioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -38,20 +41,22 @@ import java.util.List;
 @RestController
 @RequestMapping("/portfolio")
 @RequiredArgsConstructor
-@Slf4j
 public class PortfolioController {
 
+    private static final Logger log = LoggerFactory.getLogger(PortfolioController.class);
+
     private final PortfolioService service;
+    private final FinancialAnalyticsService analyticsService;
 
     /**
      * Adds a new investment to user's portfolio.
      */
     @PostMapping("/add")
     public ResponseEntity<PortfolioResponse> addInvestment(
-            @AuthenticationPrincipal String userEmail,
+            @RequestHeader("X-User-Email") String userEmail,
             @Valid @RequestBody AddInvestmentRequest request) {
-        log.info("User {} adding investment: symbol={}, units={}, buyPrice={}",
-                   userEmail, request.getSymbol(), request.getUnits(), request.getBuyPrice());
+        log.info("User {} adding investment: symbol={}, units={}, buyPrice={}, purchaseDate={}",
+                   userEmail, request.getSymbol(), request.getUnits(), request.getBuyPrice(), request.getPurchaseDate());
 
         PortfolioResponse response = service.addInvestment(userEmail, request);
         log.info("Successfully added investment for user {}: {}", userEmail, response.getSymbol());
@@ -62,7 +67,7 @@ public class PortfolioController {
      * Gets user's complete portfolio.
      */
     @GetMapping
-    public ResponseEntity<List<PortfolioResponse>> getPortfolio(@AuthenticationPrincipal String userEmail) {
+    public ResponseEntity<List<PortfolioResponse>> getPortfolio(@RequestHeader("X-User-Email") String userEmail) {
         log.debug("User {} requesting complete portfolio", userEmail);
 
         List<PortfolioResponse> portfolio = service.getPortfolio(userEmail);
@@ -75,7 +80,7 @@ public class PortfolioController {
      */
     @GetMapping("/type/{type}")
     public ResponseEntity<List<PortfolioResponse>> getPortfolioByType(
-            @AuthenticationPrincipal String userEmail,
+            @RequestHeader("X-User-Email") String userEmail,
             @PathVariable String type) {
         log.debug("User {} requesting portfolio by type: {}", userEmail, type);
 
@@ -88,7 +93,7 @@ public class PortfolioController {
      * Gets user's net worth calculation.
      */
     @GetMapping("/networth")
-    public ResponseEntity<NetWorthResponse> getNetWorth(@AuthenticationPrincipal String userEmail) {
+    public ResponseEntity<NetWorthResponse> getNetWorth(@RequestHeader("X-User-Email") String userEmail) {
         log.debug("User {} requesting net worth calculation", userEmail);
 
         NetWorthResponse netWorth = service.getNetWorth(userEmail);
@@ -97,15 +102,39 @@ public class PortfolioController {
     }
 
     /**
+     * Gets user's portfolio analytics summary (CAGR, Tax, Concentration).
+     */
+    @GetMapping("/analytics/summary")
+    public ResponseEntity<AnalyticsResponse> getAnalyticsSummary(@RequestHeader("X-User-Email") String userEmail) {
+        log.info("User {} requesting portfolio analytics summary", userEmail);
+
+        AnalyticsResponse response = analyticsService.getPortfolioAnalytics(userEmail);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Internal endpoint to update current market prices for a symbol.
+     * This affects all user holdings for that symbol.
+     */
+    @PutMapping("/internal/prices/{symbol}")
+    public ResponseEntity<Void> updatePrices(
+            @PathVariable String symbol,
+            @RequestParam BigDecimal price) {
+        log.info("System update: Setting price for symbol {} to {}", symbol, price);
+        service.updateCurrentPrices(symbol, price);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
      * Updates an existing investment.
      */
     @PutMapping("/{id}")
     public ResponseEntity<PortfolioResponse> updateInvestment(
-            @AuthenticationPrincipal String userEmail,
+            @RequestHeader("X-User-Email") String userEmail,
             @PathVariable Long id,
             @Valid @RequestBody AddInvestmentRequest request) {
-        log.info("User {} updating investment {}: symbol={}, units={}, buyPrice={}",
-                userEmail, id, request.getSymbol(), request.getUnits(), request.getBuyPrice());
+        log.info("User {} updating investment {}: symbol={}, units={}, buyPrice={}, purchaseDate={}",
+                userEmail, id, request.getSymbol(), request.getUnits(), request.getBuyPrice(), request.getPurchaseDate());
 
         PortfolioResponse response = service.updateInvestment(id, userEmail, request);
         log.info("Successfully updated investment {} for user {}", id, userEmail);
@@ -117,7 +146,7 @@ public class PortfolioController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteInvestment(
-            @AuthenticationPrincipal String userEmail,
+            @RequestHeader("X-User-Email") String userEmail,
             @PathVariable Long id) {
         log.info("User {} deleting investment: {}", userEmail, id);
 

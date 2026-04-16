@@ -23,6 +23,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * @author Kaunain Ahmad
@@ -50,4 +51,7 @@ public class AddInvestmentRequest {
     @NotNull(message = "Buy price is required")
     @DecimalMin(value = "0.01", message = "Buy price must be greater than 0")
     private BigDecimal buyPrice;
+
+    @NotNull(message = "Purchase date is required")
+    private LocalDate purchaseDate;
 }
