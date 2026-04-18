@@ -1,16 +1,23 @@
-import { useNavigate } from 'react-router-dom';
-import { LogOut, Menu, X, User, Settings, Search } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { LogOut, Menu, X, User, Settings, Search, Upload } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../utils/auth';
 import { useUser } from '../hooks/useUser';
 import { getInitials } from '../utils/stringUtils';
+import { useSearch } from '../context/SearchContext';
 import ThemeToggle from './ThemeToggle';
 
 const Navbar = () => {
   const { logout, isAuthenticated } = useAuth();
   const { user } = useUser();
+  const { searchTerm, setSearchTerm } = useSearch();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+
+  const isActive = (path) => location.pathname === path;
+  const linkClass = (path) => 
+    `transition ${isActive(path) ? 'text-blue-600 font-bold' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400'}`;
 
   const handleLogout = () => {
     logout();
@@ -36,8 +43,20 @@ const Navbar = () => {
                 <input 
                   type="text" 
                   placeholder="Search assets, types, or tags..." 
-                  className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary dark:text-white transition-all"
+                  title="Separate multiple terms with commas to search for multiple tags or assets at once (e.g., tech, crypto, HDFC)"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-10 py-2 bg-gray-100 dark:bg-gray-700 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary dark:text-white transition-all"
                 />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                aria-label="Clear search"
+              >
+                <X size={16} />
+              </button>
+            )}
               </div>
             </div>
           )}
@@ -47,19 +66,25 @@ const Navbar = () => {
               <div className="hidden md:flex items-center space-x-8">
                 <button
                   onClick={() => navigate('/dashboard')}
-                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition"
+                  className={linkClass('/dashboard')}
                 >
                   Dashboard
                 </button>
                 <button
                   onClick={() => navigate('/add-investment')}
-                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition"
+                  className={linkClass('/add-investment')}
                 >
                   Add Investment
                 </button>
                 <button
+                  onClick={() => navigate('/import')}
+                  className={linkClass('/import')}
+                >
+                  Import
+                </button>
+                <button
                   onClick={() => navigate('/reports')}
-                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition"
+                  className={linkClass('/reports')}
                 >
                   Reports
                 </button>
@@ -122,13 +147,19 @@ const Navbar = () => {
             </button>
             <button
               onClick={() => { navigate('/add-investment'); setIsOpen(false); }}
-              className="block w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={`block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${isActive('/add-investment') ? 'text-blue-600 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
             >
               Add Investment
             </button>
             <button
+              onClick={() => { navigate('/import'); setIsOpen(false); }}
+              className={`block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${isActive('/import') ? 'text-blue-600 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
+            >
+              Import Data
+            </button>
+            <button
               onClick={() => { navigate('/reports'); setIsOpen(false); }}
-              className="block w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={`block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${isActive('/reports') ? 'text-blue-600 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
             >
               Reports
             </button>

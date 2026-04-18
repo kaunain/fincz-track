@@ -21,7 +21,7 @@ public class Investment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "user_email", nullable = false)
     private String userEmail;
 
     @Column(nullable = false)
@@ -36,10 +36,10 @@ public class Investment {
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal units;
 
-    @Column(nullable = false, precision = 19, scale = 2)
+    @Column(name = "buy_price", nullable = false, precision = 19, scale = 2)
     private BigDecimal buyPrice;
 
-    @Column(nullable = false, precision = 19, scale = 2)
+    @Column(name = "current_price", nullable = false, precision = 19, scale = 2)
     private BigDecimal currentPrice;
 
     @Column(nullable = false)

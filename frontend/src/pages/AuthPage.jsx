@@ -8,8 +8,8 @@ import { useAuth } from '../utils/auth';
 const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated } = useAuth();
-  const [isSignup, setIsSignup] = useState(location.state?.isSignup || false);
+  const { login, isAuthenticated, fetchUser } = useAuth();
+  const [isSignup, setIsSignup] = useState(location.pathname === '/signup' || location.state?.isSignup || false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +27,12 @@ const AuthPage = () => {
     }
   }, [isAuthenticated, navigate]);
 
+  useEffect(() => {
+    setIsSignup(location.pathname === '/signup');
+    setError('');
+    setIsMfaStep(false);
+  }, [location.pathname]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -40,12 +46,12 @@ const AuthPage = () => {
           return;
         }
         await authAPI.signup(name, email, password);
-        setIsSignup(false);
         setName('');
         setPassword('');
         setConfirmPassword('');
         setEmail('');
         toast.success('Signup successful! Please login.');
+        navigate('/login');
       } else if (isMfaStep) {
         const response = await authAPI.verifyMfa({ email, code: mfaCode, rememberMe: rememberDevice });
         const token = response.data.token || response.data.accessToken;
@@ -57,6 +63,7 @@ const AuthPage = () => {
         }
 
         login(email, token);
+        await fetchUser();
         navigate('/dashboard');
       } else {
         const deviceToken = localStorage.getItem('fincz_device_token');
@@ -70,6 +77,7 @@ const AuthPage = () => {
         const token = response.data.token || response.data.accessToken || response.data;
         if (token && typeof token === 'string') {
           login(email, token);
+          await fetchUser();
           navigate('/dashboard');
         } else {
           throw new Error('Invalid token structure received from server');
@@ -246,7 +254,7 @@ const AuthPage = () => {
               {isSignup ? 'Already have an account?' : "Don't have an account?"}
             </p>
             <button
-              onClick={() => setIsSignup(!isSignup)}
+              onClick={() => navigate(isSignup ? '/login' : '/signup')}
               className="text-primary font-semibold hover:underline"
             >
               {isSignup ? 'Login here' : 'Sign up here'}

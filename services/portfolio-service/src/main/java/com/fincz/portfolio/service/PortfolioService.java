@@ -23,7 +23,11 @@ import com.fincz.portfolio.dto.NetWorthResponse;
 import com.fincz.portfolio.dto.PortfolioResponse;
 import com.fincz.portfolio.entity.Investment;
 import com.fincz.portfolio.repository.InvestmentRepository;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -35,6 +39,7 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Set;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -51,6 +56,7 @@ public class PortfolioService {
     private static final Logger logger = LoggerFactory.getLogger(PortfolioService.class);
 
     private final InvestmentRepository repository;
+    private final Validator validator;
 
     /**
      * Adds a new investment to user's portfolio.
@@ -81,12 +87,10 @@ public class PortfolioService {
     /**
      * Gets user's complete portfolio.
      */
-    public List<PortfolioResponse> getPortfolio(String userEmail) {
-        if (userEmail == null) return java.util.Collections.emptyList();
-        return repository.findByUserEmail(userEmail)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    public Page<PortfolioResponse> getPortfolio(String userEmail, Pageable pageable) {
+        if (userEmail == null) return Page.empty();
+        return repository.findByUserEmail(userEmail, pageable)
+                .map(this::mapToResponse);
     }
 
     /**
@@ -95,6 +99,24 @@ public class PortfolioService {
     @Transactional
     public void bulkAddInvestments(String userEmail, List<AddInvestmentRequest> requests) {
         logger.info("Bulk adding {} investments for user: {}", requests.size(), userEmail);
+        
+        StringBuilder errorReport = new StringBuilder();
+        for (int i = 0; i < requests.size(); i++) {
+            AddInvestmentRequest request = requests.get(i);
+            Set<ConstraintViolation<AddInvestmentRequest>> violations = validator.validate(request);
+            
+            if (!violations.isEmpty()) {
+                String messages = violations.stream()
+                        .map(v -> v.getPropertyPath() + " " + v.getMessage())
+                        .collect(Collectors.joining(", "));
+                errorReport.append(String.format("[Row %d: %s] ", i + 1, messages));
+            }
+        }
+
+        if (errorReport.length() > 0) {
+            throw new PortfolioException("Bulk import validation failed: " + errorReport.toString());
+        }
+
         for (AddInvestmentRequest request : requests) {
             // Find existing by symbol to update, or create new
             Investment investment = repository.findByUserEmailAndSymbol(userEmail, request.getSymbol())

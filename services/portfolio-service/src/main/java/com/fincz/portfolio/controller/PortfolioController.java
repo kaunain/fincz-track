@@ -24,6 +24,10 @@ import com.fincz.portfolio.service.FinancialAnalyticsService;
 import com.fincz.portfolio.service.PortfolioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -68,11 +72,17 @@ public class PortfolioController {
      * Gets user's complete portfolio.
      */
     @GetMapping
-    public ResponseEntity<List<PortfolioResponse>> getPortfolio(@RequestHeader("X-User-Email") String userEmail) {
-        log.debug("User {} requesting complete portfolio", userEmail);
+    public ResponseEntity<Page<PortfolioResponse>> getPortfolio(
+            @RequestHeader("X-User-Email") String userEmail,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "name,asc") String sort) {
+        
+        String[] sortParams = sort.split(",");
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.fromString(sortParams[1]), sortParams[0]));
 
-        List<PortfolioResponse> portfolio = service.getPortfolio(userEmail);
-        log.info("Retrieved portfolio for user {}: {} items", userEmail, portfolio.size());
+        Page<PortfolioResponse> portfolio = service.getPortfolio(userEmail, pageable);
+        log.info("Retrieved page {} of portfolio for user {}: {} items", page, userEmail, portfolio.getNumberOfElements());
         return ResponseEntity.ok(portfolio);
     }
 
@@ -93,7 +103,7 @@ public class PortfolioController {
     @PostMapping("/bulk")
     public ResponseEntity<Void> bulkAdd(
             @RequestHeader("X-User-Email") String userEmail,
-            @Valid @RequestBody List<AddInvestmentRequest> requests) {
+            @RequestBody List<AddInvestmentRequest> requests) {
         service.bulkAddInvestments(userEmail, requests);
         return ResponseEntity.ok().build();
     }

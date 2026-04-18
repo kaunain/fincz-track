@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { portfolioAPI } from '../utils/api';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, Upload } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { calculateInvestmentValue } from '../utils/portfolioUtils';
 import { formatCurrency } from '../utils/formatters';
@@ -262,6 +262,18 @@ const AddInvestment = () => {
                 Cancel
               </button>
             </div>
+
+            {!isEdit && (
+              <div className="text-center">
+                <button 
+                  type="button"
+                  onClick={() => navigate('/import')}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center justify-center gap-1 mx-auto transition-colors"
+                >
+                  <Upload size={14} /> Have a lot of investments? Import from CSV instead
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </motion.div>
