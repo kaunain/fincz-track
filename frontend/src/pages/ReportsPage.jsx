@@ -15,6 +15,7 @@ import { usePagination } from '../hooks/usePagination';
 import { useSearch } from '../context/SearchContext';
 import ImportPreviewModal from '../components/ImportPreviewModal';
 import { downloadCSV } from '../utils/exportUtils';
+import SystemHealthFooter from '../components/SystemHealthFooter';
 
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
 const ITEMS_PER_PAGE = 10;
@@ -177,21 +178,7 @@ const ReportsPage = () => {
       setAnalytics(analyticsRes.data);
     } catch (err) {
       console.error('Reports data error:', err);
-      let errorMessage = 'Failed to load reports';
-      
-      if (err.response?.data) {
-        if (typeof err.response.data === 'string') {
-          errorMessage = err.response.data;
-        } else if (err.response.data.message) {
-          errorMessage = err.response.data.message;
-        } else if (err.response.data.error) {
-          errorMessage = err.response.data.error;
-        }
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
+      setError(err.userMessage || 'Failed to load reports. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -575,6 +562,8 @@ const ReportsPage = () => {
             </div>
           )}
         </Card>
+
+        <SystemHealthFooter />
       </div>
 
       <ConfirmDialog

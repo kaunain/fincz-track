@@ -10,8 +10,7 @@ A comprehensive microservices-based financial tracking application with portfoli
 
 ### Backend Services (Spring Boot + Java 17)
 - **API Gateway** (Port 8080) - Central request routing with JWT authentication
-- **Auth Service** (Port 8081) - User authentication and JWT token generation
-- **User Service** (Port 8082) - User profile management and personal finance data
+- **User Service** (Port 8082) - Consolidated Identity, Auth, and Profile management
 - **Portfolio Service** (Port 8083) - Investment tracking and net worth calculations
 - **Market Data Service** (Port 8084) - Real-time stock price lookups
 - **Notification Service** (Port 8085) - Email notifications and alerts [*compilation issue*]
@@ -169,8 +168,7 @@ GET  /api/portfolio/networth      → 200 ✓
 │                                                  │ (JWT Authentication)
 │
 ├─────────────────────────────────────────────────├─ Microservices
-│  ├─ Auth Service (8081)     - Login/Signup
-│  ├─ User Service (8082)     - Profiles
+│  ├─ User Service (8082)     - Identity & Auth
 │  ├─ Portfolio Service (8083) - Investments
 │  ├─ Market Service (8084)   - Stock Data
 │  └─ Notification Service (8085) - Alerts [offline]

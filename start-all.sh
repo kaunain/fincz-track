@@ -53,12 +53,6 @@ export JWT_SECRET="$JWT_SECRET"
 export JWT_EXPIRATION="$JWT_EXPIRATION"
 
 # Start services
-echo -e "${YELLOW}🔑 Starting Auth Service (Port 8081)...${NC}"
-(cd services/auth-service && ./mvnw spring-boot:run) &
-AUTH_PID=$!
-
-sleep 3
-
 echo -e "${YELLOW}👤 Starting User Service (Port 8082)...${NC}"
 (cd services/user-service && ./mvnw spring-boot:run) &
 USER_PID=$!
@@ -92,7 +86,6 @@ echo -e "${GREEN}✅ All services started!${NC}"
 echo ""
 echo -e "${BLUE}📋 Service Ports:${NC}"
 echo "   🌉 API Gateway........... http://localhost:8080"
-echo "   🔑 Auth Service.......... http://localhost:8081"
 echo "   👤 User Service.......... http://localhost:8082"
 echo "   💼 Portfolio Service..... http://localhost:8083"
 echo "   📊 Market Data Service... http://localhost:8084"
@@ -114,7 +107,7 @@ echo ""
 cleanup() {
     echo ""
     echo -e "${YELLOW}🛑 Stopping services...${NC}"
-    kill $AUTH_PID $USER_PID $PORTFOLIO_PID $MARKET_PID $NOTIFICATION_PID $GATEWAY_PID 2>/dev/null || true
+    kill $USER_PID $PORTFOLIO_PID $MARKET_PID $NOTIFICATION_PID $GATEWAY_PID 2>/dev/null || true
     echo -e "${GREEN}✅ Services stopped${NC}"
     exit 0
 }
