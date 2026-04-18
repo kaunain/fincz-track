@@ -1,17 +1,21 @@
 import { useEffect, useState, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { portfolioAPI } from '../utils/api';
-import { TrendingUp, DollarSign, Percent, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { TrendingUp, DollarSign, Percent, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useDeleteInvestment } from '../hooks/useDeleteInvestment';
 import { formatCurrency } from '../utils/formatters';
 import { calculateInvestmentValue } from '../utils/portfolioUtils';
+import { usePagination } from '../hooks/usePagination';
+import { useSearch } from '../context/SearchContext';
 
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
+const ITEMS_PER_PAGE = 5;
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -19,13 +23,57 @@ const Dashboard = () => {
   const [netWorth, setNetWorth] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState('');
+  const { searchTerm } = useSearch();
   const { theme } = useTheme();
 
   const chartData = useMemo(() => portfolio ? portfolio.map(item => ({
     name: item.name,
     value: parseFloat(item.currentValue || 0),
   })) : [], [portfolio]);
+
+  const filteredPortfolio = useMemo(() => {
+    if (!portfolio) return [];
+    if (!searchTerm) return portfolio;
+
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    const hasCommas = lowerCaseSearchTerm.includes(',');
+
+    return portfolio.filter(item => {
+      const itemName = item.name?.toLowerCase() || '';
+      const itemSymbol = item.symbol?.toLowerCase() || '';
+      const itemType = item.type?.toLowerCase() || '';
+      const itemTags = item.tags?.map(tag => tag.toLowerCase()) || [];
+
+      if (hasCommas) {
+        const individualSearchTerms = lowerCaseSearchTerm.split(',').map(term => term.trim()).filter(term => term.length > 0);
+        return individualSearchTerms.some(term => 
+          itemName.includes(term) ||
+          itemSymbol.includes(term) ||
+          itemType.includes(term) ||
+          itemTags.some(tag => tag.includes(term))
+        );
+      } else {
+        return itemName.includes(lowerCaseSearchTerm) ||
+               itemSymbol.includes(lowerCaseSearchTerm) ||
+               itemType.includes(lowerCaseSearchTerm) ||
+               itemTags.some(tag => tag.includes(lowerCaseSearchTerm));
+      }
+    });
+  }, [portfolio, searchTerm]);
+
+  const { 
+    paginatedData: paginatedPortfolio, 
+    totalPages, 
+    currentPage, 
+    nextPage, 
+    prevPage 
+  } = usePagination({
+    data: filteredPortfolio,
+    itemsPerPage: ITEMS_PER_PAGE,
+    dependencies: [searchTerm]
+  });
 
   const concentrationData = useMemo(() => {
     if (!analytics || !analytics.concentrationRisk) return [];
@@ -35,7 +83,7 @@ const Dashboard = () => {
     }));
   }, [analytics]);
 
-  const totalValue = useMemo(() => chartData.reduce((sum, item) => sum + item.value, 0), [chartData]);
+  const totalValue = useMemo(() => netWorth ? parseFloat(netWorth.currentValue || 0) : 0, [netWorth]);
   const profitLoss = useMemo(() => netWorth ? parseFloat(netWorth.totalPnl || 0) : 0, [netWorth]);
   const profitPercentage = useMemo(() => netWorth ? parseFloat(netWorth.pnlPercentage || 0) : 0, [netWorth]);
 
@@ -45,7 +93,7 @@ const Dashboard = () => {
     const list = [];
     // Concentration Insight
     if (chartData.length > 0) {
-      const topAsset = chartData.reduce((prev, current) => (prev.value > current.value) ? prev : current);
+      const topAsset = chartData.reduce((prev, current) => (prev.value > current.value) ? prev : current, chartData[0]);
       if (topAsset.value / totalValue > 0.5) {
         list.push({
           type: 'warning',
@@ -91,9 +139,15 @@ const Dashboard = () => {
         portfolioAPI.getAnalyticsSummary(),
       ]);
 
-      setPortfolio(portfolioRes.data);
+      // Handle Spring Data Page object or List
+      if (portfolioRes.data && portfolioRes.data.content) {
+        setPortfolio(portfolioRes.data.content);
+      } else {
+        setPortfolio(portfolioRes.data || []);
+      }
       setNetWorth(netWorthRes.data);
       setAnalytics(analyticsRes.data);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error('Dashboard data error:', err);
       let errorMessage = 'Failed to load dashboard data';
@@ -137,7 +191,31 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8 transition-colors duration-200">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Dashboard</h1>
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
+                Last updated: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            )}
+            <button 
+              onClick={fetchDashboardData}
+              disabled={loading}
+              className="flex items-center justify-center p-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm disabled:opacity-50"
+              title="Refresh Data"
+            >
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <button 
+              onClick={() => navigate('/import')}
+              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium"
+            >
+              <Upload size={18} />
+              Import Data
+            </button>
+          </div>
+        </div>
 
         {error && (
           <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 text-danger rounded-xl">
@@ -288,10 +366,25 @@ const Dashboard = () => {
           </Card>
 
           {/* Portfolio Details */}
-          <Card title="Your Portfolio" loading={loading}>
-            {portfolio && portfolio.length > 0 ? (
-              <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                {portfolio.map((item, index) => (
+          <Card title="Your Portfolio" loading={loading && !portfolio}>
+            {filteredPortfolio && filteredPortfolio.length > 0 ? (
+              <div className="flex flex-col h-full relative">
+                {/* Portfolio Loading Overlay */}
+                <AnimatePresence>
+                  {loading && portfolio && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-white/40 dark:bg-gray-800/40 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-xl"
+                    >
+                      <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="space-y-3 mb-4">
+                  {paginatedPortfolio.map((item, index) => (
                   <div key={item.id || index} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg group hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900 dark:text-white">{item.name}</p>
@@ -320,6 +413,31 @@ const Dashboard = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+                
+                {totalPages > 1 && (
+                  <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <span className="text-xs text-gray-500 font-medium">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={prevPage}
+                        disabled={currentPage === 1}
+                        className="p-1 rounded-md border border-gray-200 dark:border-gray-700 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <ChevronLeft size={16} className="dark:text-white" />
+                      </button>
+                      <button
+                        onClick={nextPage}
+                        disabled={currentPage === totalPages}
+                        className="p-1 rounded-md border border-gray-200 dark:border-gray-700 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <ChevronRight size={16} className="dark:text-white" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-gray-500 dark:text-gray-400 text-center py-8">No investments yet</p>

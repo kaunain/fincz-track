@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './utils/auth';
 import { ThemeProvider } from './context/ThemeContext';
+import { SearchProvider } from './context/SearchContext';
 import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -11,6 +12,7 @@ import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import AddInvestment from './pages/AddInvestment';
 import ReportsPage from './pages/ReportsPage';
+import ImportDataPage from './pages/ImportDataPage';
 import ProfileSettings from './pages/ProfileSettings';
 import ForgotPassword from './pages/ForgotPassword';
 
@@ -37,42 +39,52 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <ThemeProvider>
-          <Toaster position="top-right" richColors />
-          <GlobalLoading />
-          <Navbar />
-          <ErrorBoundary>
-            <Routes>
-              <Route path="/login" element={<ErrorBoundary><AuthPage /></ErrorBoundary>} />
-              <Route path="/signup" element={<ErrorBoundary><AuthPage /></ErrorBoundary>} />
-              <Route path="/forgot-password" element={<ErrorBoundary><ForgotPassword /></ErrorBoundary>} />
-              
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute withErrorBoundary>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              
-              <Route
-                path="/add-investment"
-                element={
-                  <ProtectedRoute withErrorBoundary>
-                    <AddInvestment />
-                  </ProtectedRoute>
-                }
-              />
-              
-              <Route
-                path="/reports"
-                element={
-                  <ProtectedRoute withErrorBoundary>
-                    <ReportsPage />
-                  </ProtectedRoute>
-                }
-              />
+        <SearchProvider>
+          <ThemeProvider>
+            <Toaster position="top-right" richColors />
+            <GlobalLoading />
+            <Navbar />
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/login" element={<ErrorBoundary><AuthPage /></ErrorBoundary>} />
+                <Route path="/signup" element={<ErrorBoundary><AuthPage /></ErrorBoundary>} />
+                <Route path="/forgot-password" element={<ErrorBoundary><ForgotPassword /></ErrorBoundary>} />
+                
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute withErrorBoundary>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/add-investment"
+                  element={
+                    <ProtectedRoute withErrorBoundary>
+                      <AddInvestment />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/import"
+                  element={
+                    <ProtectedRoute withErrorBoundary>
+                      <ImportDataPage />
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/reports"
+                  element={
+                    <ProtectedRoute withErrorBoundary>
+                      <ReportsPage />
+                    </ProtectedRoute>
+                  }
+                />
 
               <Route
                 path="/profile"
@@ -83,10 +95,11 @@ function App() {
                 }
               />
               
-              <Route path="/" element={<RootRedirect />} />
-            </Routes>
-          </ErrorBoundary>
-        </ThemeProvider>
+                <Route path="/" element={<RootRedirect />} />
+              </Routes>
+            </ErrorBoundary>
+          </ThemeProvider>
+        </SearchProvider>
       </AuthProvider>
     </Router>
   );

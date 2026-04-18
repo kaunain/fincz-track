@@ -1,92 +1,114 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, RefreshCw } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
-import { formatCurrency } from '../utils/formatters';
+import { X, AlertCircle, CheckCircle2, Filter } from 'lucide-react';
 
-const ImportPreviewModal = ({ isOpen, onClose, onConfirm, data, loading }) => {
-  const { theme } = useTheme();
-
-  if (!isOpen) return null;
+const ImportPreviewModal = ({ isOpen, onClose, onConfirm, onFilterInvalid, data, loading }) => {
+  const invalidCount = data.filter(item => !item.isValid).length;
 
   return (
     <AnimatePresence>
       {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-50 dark:bg-opacity-75"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
         >
-          <motion.div
-            initial={{ scale: 0.9, y: 20 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.9, y: 20 }}
-            className="relative w-full max-w-3xl p-6 bg-white rounded-lg shadow-xl dark:bg-gray-800"
-          >
-            <h3 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-              Confirm Import from Zerodha CSV
-            </h3>
-            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              Review the investments below. Existing investments with the same symbol will be updated, and new ones will be added.
-            </p>
-
-            <div className="max-h-80 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg mb-6">
-              <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                <thead className="sticky top-0 text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                  <tr>
-                    <th scope="col" className="px-6 py-3">Symbol</th>
-                    <th scope="col" className="px-6 py-3 text-right">Units</th>
-                    <th scope="col" className="px-6 py-3 text-right">Avg. Buy Price</th>
-                    <th scope="col" className="px-6 py-3 text-right">Current Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.length > 0 ? (
-                    data.map((item, index) => (
-                      <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{item.symbol}</td>
-                        <td className="px-6 py-4 text-right">{item.units}</td>
-                        <td className="px-6 py-4 text-right">₹{formatCurrency(item.buyPrice)}</td>
-                        <td className="px-6 py-4 text-right">₹{formatCurrency(item.currentPrice)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr className="bg-white dark:bg-gray-800">
-                      <td colSpan="4" className="px-6 py-4 text-center">No valid investments found in the CSV.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold dark:text-white">Review Import Data</h2>
+              <p className="text-sm text-gray-500">
+                Found {data.length} records. {invalidCount > 0 ? (
+                  <span className="text-red-500 font-medium">Please review {invalidCount} invalid entries highlighted below.</span>
+                ) : (
+                  <span className="text-green-500 font-medium">All entries look valid!</span>
+                )}
+              </p>
             </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+              <X size={20} className="dark:text-white" />
+            </button>
+          </div>
 
-            <div className="flex justify-end gap-3">
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                  <th className="px-4 py-3">Symbol</th>
+                  <th className="px-4 py-3 text-right">Units</th>
+                  <th className="px-4 py-3 text-right">Avg. Price</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {data.map((item, idx) => (
+                  <tr 
+                    key={idx} 
+                    className={`transition-colors ${!item.isValid ? 'bg-red-50 dark:bg-red-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
+                  >
+                    <td className="px-4 py-3 font-medium dark:text-white">
+                      {item.symbol}
+                    </td>
+                    <td className="px-4 py-3 text-right dark:text-gray-300">
+                      {item.units.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-right dark:text-gray-300">
+                      ₹{item.buyPrice.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.isValid ? (
+                        <div className="flex items-center text-green-500 gap-1">
+                          <CheckCircle2 size={14} /> Valid
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-red-500 gap-1" title={item.errors?.join(', ')}>
+                          <AlertCircle size={14} /> {item.errors?.[0]}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer */}
+          <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center gap-3">
+            <div className="flex-1">
+              {invalidCount > 0 && onFilterInvalid && (
+                <button
+                  onClick={onFilterInvalid}
+                  className="flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 transition-colors"
+                >
+                  <Filter size={16} /> Discard {invalidCount} invalid rows
+                </button>
+              )}
+            </div>
+            <div className="flex gap-3">
               <button
                 onClick={onClose}
-                disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                className="px-6 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl font-medium dark:text-white hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={onConfirm}
-                disabled={loading}
-                className={`px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                disabled={loading || invalidCount > 0}
+                className={`px-6 py-2 rounded-xl font-bold text-white transition-all ${
+                  loading || invalidCount > 0 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30'
+                }`}
               >
-                {loading && <RefreshCw size={16} className="animate-spin" />}
                 {loading ? 'Importing...' : 'Confirm Import'}
               </button>
             </div>
-
-            <button
-              onClick={onClose}
-              className="absolute top-3 right-3 p-2 text-gray-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              disabled={loading}
-            >
-              <X size={20} />
-            </button>
-          </motion.div>
+          </div>
         </motion.div>
+      </div>
       )}
     </AnimatePresence>
   );

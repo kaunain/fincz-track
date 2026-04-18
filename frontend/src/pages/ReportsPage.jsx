@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { portfolioAPI } from '../utils/api'; // Ensure portfolioAPI is imported
-import { FileText, Pencil, Trash2, Download, Search, ArrowUpDown, Tag, Upload } from 'lucide-react'; // Add Upload icon
+import { FileText, Pencil, Trash2, Download, Search, ArrowUpDown, Tag, Upload, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'; // Add Upload icon
 import { useTheme } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
@@ -11,10 +11,13 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { useDeleteInvestment } from '../hooks/useDeleteInvestment';
 import { formatCurrency } from '../utils/formatters';
 import { calculateInvestmentValue } from '../utils/portfolioUtils';
+import { usePagination } from '../hooks/usePagination';
+import { useSearch } from '../context/SearchContext';
 import ImportPreviewModal from '../components/ImportPreviewModal';
 import { downloadCSV } from '../utils/exportUtils';
 
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
+const ITEMS_PER_PAGE = 10;
 
 const ReportsPage = () => {
   const navigate = useNavigate();
@@ -22,11 +25,10 @@ const ReportsPage = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showImportPreview, setShowImportPreview] = useState(false);
-  const [importPreviewData, setImportPreviewData] = useState([]);
+  const { searchTerm, setSearchTerm } = useSearch();
   const [fileForImport, setFileForImport] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [totalItems, setTotalItems] = useState(0);
   const { theme } = useTheme();
 
   const filteredAndSortedPortfolio = useMemo(() => {
@@ -36,11 +38,29 @@ const ReportsPage = () => {
     
     // Filtering
     if (searchTerm) {
-      items = items.filter(item => 
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
-      );
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      const hasCommas = lowerCaseSearchTerm.includes(',');
+
+      items = items.filter(item => {
+        const itemName = item.name?.toLowerCase() || '';
+        const itemSymbol = item.symbol?.toLowerCase() || '';
+        const itemType = item.type?.toLowerCase() || '';
+        const itemTags = item.tags?.map(tag => tag.toLowerCase()) || [];
+
+        if (hasCommas) {
+          const individualSearchTerms = lowerCaseSearchTerm.split(',').map(term => term.trim()).filter(term => term.length > 0);
+          return individualSearchTerms.some(term => 
+            itemName.includes(term) ||
+            itemSymbol.includes(term) ||
+            itemType.includes(term) ||
+            itemTags.some(tag => tag.includes(term))
+          );
+        }
+        return itemName.includes(lowerCaseSearchTerm) ||
+               itemSymbol.includes(lowerCaseSearchTerm) ||
+               itemType.includes(lowerCaseSearchTerm) ||
+               itemTags.some(tag => tag.includes(lowerCaseSearchTerm));
+      });
     }
     
     // Sorting
@@ -61,6 +81,25 @@ const ReportsPage = () => {
     
     return items;
   }, [portfolio, searchTerm, sortConfig]);
+
+  // Use the new custom hook
+  const { 
+    paginatedData: paginatedPortfolio, 
+    totalPages, 
+    currentPage, 
+    nextPage, 
+    prevPage,
+    goToPage,
+    startIndex,
+    endIndex
+  } = usePagination({
+    data: portfolio || [],
+    itemsPerPage: ITEMS_PER_PAGE,
+    isServerSide: true,
+    totalItems: totalItems,
+    onPageChange: (newPage) => fetchPortfolioData(newPage),
+    dependencies: [searchTerm, sortConfig]
+  });
 
   const handleSort = (key) => {
     setSortConfig(prev => ({
@@ -118,15 +157,23 @@ const ReportsPage = () => {
     fetchPortfolioData();
   }, []);
 
-  const fetchPortfolioData = async () => {
+  const fetchPortfolioData = async (page = 1) => {
     try {
       setLoading(true);
+      const pageIndex = page - 1; // Backend is 0-indexed
       const [portfolioRes, analyticsRes] = await Promise.all([
-        portfolioAPI.getPortfolio(),
+        portfolioAPI.getPortfolio(pageIndex, ITEMS_PER_PAGE, `${sortConfig.key},${sortConfig.direction}`),
         portfolioAPI.getAnalyticsSummary(),
       ]);
 
-      setPortfolio(portfolioRes.data);
+      // Handle Spring Data Page object or List
+      if (portfolioRes.data.content) {
+        setPortfolio(portfolioRes.data.content);
+        setTotalItems(portfolioRes.data.totalElements);
+      } else {
+        setPortfolio(portfolioRes.data);
+        setTotalItems(portfolioRes.data.length);
+      }
       setAnalytics(analyticsRes.data);
     } catch (err) {
       console.error('Reports data error:', err);
@@ -192,13 +239,22 @@ const ReportsPage = () => {
             <FileText className="text-blue-600 dark:text-blue-400 mr-3" size={32} />
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
           </div>
-          <button 
-            onClick={exportToCSV}
-            className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm font-medium"
-          >
-            <Download size={18} />
-            Export CSV
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/import')}
+              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium"
+            >
+              <Upload size={18} />
+              Import Data
+            </button>
+            <button 
+              onClick={exportToCSV}
+              className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm font-medium"
+            >
+              <Download size={18} />
+              Export CSV
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -211,7 +267,7 @@ const ReportsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Investments</p>
-            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">{portfolio?.length || 0}</p>
+            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">{totalItems}</p>
           </Card>
           <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Value</p>
@@ -385,6 +441,7 @@ const ReportsPage = () => {
                 <input 
                   type="text" 
                   placeholder="Filter table..." 
+                  title="Separate multiple terms with commas to search for multiple tags or assets at once (e.g., tech, crypto, HDFC)"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9 pr-4 py-1.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary dark:text-white transition-all w-full md:w-64"
@@ -393,10 +450,24 @@ const ReportsPage = () => {
             </div>
           } 
           noPadding 
-          loading={loading}
+          loading={loading && !portfolio}
         >
           {portfolio && portfolio.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto relative">
+              {/* Table Loading Overlay */}
+              <AnimatePresence>
+                {loading && portfolio && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-white/40 dark:bg-gray-800/40 backdrop-blur-[1px] z-10 flex items-center justify-center"
+                  >
+                    <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                   <tr>
@@ -419,7 +490,7 @@ const ReportsPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredAndSortedPortfolio.map((item, index) => (
+                  {paginatedPortfolio.map((item, index) => (
                     <tr key={item.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900 dark:text-gray-200">{item.name}</div>
@@ -465,6 +536,44 @@ const ReportsPage = () => {
           ) : (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">No investments to display</p>
           )}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Showing <span className="font-medium">{startIndex}</span> to <span className="font-medium">{endIndex}</span> of <span className="font-medium">{filteredAndSortedPortfolio.length}</span> investments
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={prevPage}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={16} className="dark:text-white" />
+                </button>
+                
+                <div className="flex items-center gap-1">
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => goToPage(i + 1)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700'}`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={nextPage}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={16} className="dark:text-white" />
+                </button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -477,14 +586,6 @@ const ReportsPage = () => {
       >
         Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-white">{itemToDelete?.name}</span>? This action cannot be undone.
       </ConfirmDialog>
-
-      <ImportPreviewModal
-        isOpen={showImportPreview}
-        onClose={() => setShowImportPreview(false)}
-        onConfirm={handleConfirmImport}
-        data={importPreviewData}
-        loading={loading}
-      />
     </div>
   );
 };
