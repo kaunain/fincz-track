@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { portfolioAPI } from '../utils/api';
-import { FileText, Pencil, Trash2, Download, Search, ArrowUpDown, Tag } from 'lucide-react';
+import { portfolioAPI } from '../utils/api'; // Ensure portfolioAPI is imported
+import { FileText, Pencil, Trash2, Download, Search, ArrowUpDown, Tag, Upload } from 'lucide-react'; // Add Upload icon
 import { useTheme } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
@@ -11,6 +11,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { useDeleteInvestment } from '../hooks/useDeleteInvestment';
 import { formatCurrency } from '../utils/formatters';
 import { calculateInvestmentValue } from '../utils/portfolioUtils';
+import ImportPreviewModal from '../components/ImportPreviewModal';
 import { downloadCSV } from '../utils/exportUtils';
 
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
@@ -22,6 +23,9 @@ const ReportsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showImportPreview, setShowImportPreview] = useState(false);
+  const [importPreviewData, setImportPreviewData] = useState([]);
+  const [fileForImport, setFileForImport] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const { theme } = useTheme();
 
@@ -473,6 +477,14 @@ const ReportsPage = () => {
       >
         Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-white">{itemToDelete?.name}</span>? This action cannot be undone.
       </ConfirmDialog>
+
+      <ImportPreviewModal
+        isOpen={showImportPreview}
+        onClose={() => setShowImportPreview(false)}
+        onConfirm={handleConfirmImport}
+        data={importPreviewData}
+        loading={loading}
+      />
     </div>
   );
 };

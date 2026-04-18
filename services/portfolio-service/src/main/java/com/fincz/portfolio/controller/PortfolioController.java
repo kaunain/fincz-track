@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -76,6 +77,28 @@ public class PortfolioController {
     }
 
     /**
+     * Imports investments from a CSV file.
+     */
+    @PostMapping("/import")
+    public ResponseEntity<String> importInvestments(
+            @RequestHeader("X-User-Email") String userEmail,
+            @RequestParam("file") MultipartFile file) {
+        service.importZerodhaCsv(userEmail, file);
+        return ResponseEntity.ok("Investments imported successfully");
+    }
+
+    /**
+     * Bulk adds or updates investments.
+     */
+    @PostMapping("/bulk")
+    public ResponseEntity<Void> bulkAdd(
+            @RequestHeader("X-User-Email") String userEmail,
+            @Valid @RequestBody List<AddInvestmentRequest> requests) {
+        service.bulkAddInvestments(userEmail, requests);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
      * Gets portfolio items by investment type.
      */
     @GetMapping("/type/{type}")
@@ -120,8 +143,11 @@ public class PortfolioController {
     public ResponseEntity<Void> updatePrices(
             @PathVariable String symbol,
             @RequestParam BigDecimal price) {
-        log.info("System update: Setting price for symbol {} to {}", symbol, price);
-        service.updateCurrentPrices(symbol, price);
+        log.debug("Internal price update request for symbol: {}, price: {}", symbol, price);
+        int updatedCount = service.updateCurrentPrices(symbol, price);
+        if (updatedCount == 0) {
+            return ResponseEntity.noContent().build();
+        }
         return ResponseEntity.ok().build();
     }
 

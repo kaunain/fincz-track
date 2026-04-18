@@ -28,9 +28,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -86,6 +90,100 @@ public class PortfolioService {
     }
 
     /**
+     * Bulk adds or updates investments from a list of requests.
+     */
+    @Transactional
+    public void bulkAddInvestments(String userEmail, List<AddInvestmentRequest> requests) {
+        logger.info("Bulk adding {} investments for user: {}", requests.size(), userEmail);
+        for (AddInvestmentRequest request : requests) {
+            // Find existing by symbol to update, or create new
+            Investment investment = repository.findByUserEmailAndSymbol(userEmail, request.getSymbol())
+                    .orElseGet(() -> Investment.builder()
+                            .userEmail(userEmail)
+                            .symbol(request.getSymbol())
+                            .name(request.getName() != null ? request.getName() : request.getSymbol())
+                            .type(request.getType() != null ? request.getType() : "stock")
+                            .purchaseDate(request.getPurchaseDate() != null ? request.getPurchaseDate() : LocalDate.now())
+                            .build());
+
+            investment.setUnits(request.getUnits());
+            investment.setBuyPrice(request.getBuyPrice());
+            
+            // Initialize current price only if it's a new investment
+            if (investment.getCurrentPrice() == null) {
+                investment.setCurrentPrice(request.getBuyPrice());
+            }
+            
+            if (request.getName() != null) investment.setName(request.getName());
+            if (request.getType() != null) investment.setType(request.getType());
+            if (request.getPurchaseDate() != null) investment.setPurchaseDate(request.getPurchaseDate());
+
+            repository.save(investment);
+        }
+    }
+
+    /**
+     * Imports investments from a Zerodha holdings CSV file.
+     */
+    @Transactional
+    public void importZerodhaCsv(String userEmail, MultipartFile file) {
+        logger.info("Importing Zerodha CSV for user: {}", userEmail);
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            String line;
+            boolean isHeader = true;
+            while ((line = reader.readLine()) != null) {
+                if (isHeader) {
+                    isHeader = false;
+                    continue; // Skip header row
+                }
+                String[] columns = line.split(",");
+                
+                // Zerodha CSV format:
+                // 0: Symbol, 1: ISIN, 2: Sector, 3: Quantity Available, 4: Quantity Discrepant,
+                // 5: Quantity Long Term, 6: Quantity Pledged (Margin), 7: Quantity Pledged (Loan),
+                // 8: Average Price, 9: Previous Closing Price, 10: Unrealized P&L, 11: Unrealized P&L Pct.
+                
+                // Ensure enough columns are present
+                if (columns.length < 10) { 
+                    logger.warn("Skipping malformed CSV line: {}", line);
+                    continue;
+                }
+
+                String symbol = columns[0].trim();
+                BigDecimal units = new BigDecimal(columns[3].trim());
+                BigDecimal buyPrice = new BigDecimal(columns[8].trim());
+                BigDecimal currentPrice = new BigDecimal(columns[9].trim());
+
+                // Skip if quantity is 0 or less
+                if (units.compareTo(BigDecimal.ZERO) <= 0) {
+                    logger.debug("Skipping investment with zero or negative units for symbol: {}", symbol);
+                    continue;
+                }
+
+                // Check if symbol already exists for this user to update instead of duplicate
+                Investment investment = repository.findByUserEmailAndSymbol(userEmail, symbol)
+                        .orElseGet(() -> Investment.builder()
+                                .userEmail(userEmail)
+                                .symbol(symbol)
+                                .name(symbol) // Zerodha CSV lacks full names, defaulting to symbol
+                                .type("stock")
+                                .purchaseDate(LocalDate.now())
+                                .build());
+
+                investment.setUnits(units);
+                investment.setBuyPrice(buyPrice);
+                investment.setCurrentPrice(currentPrice);
+
+                repository.save(investment); // Save each investment
+            }
+            logger.info("Zerodha import completed for user: {}", userEmail);
+        } catch (Exception e) {
+            logger.error("Error parsing Zerodha CSV: {}", e.getMessage(), e);
+            throw new PortfolioException("Failed to parse CSV file: " + e.getMessage());
+        }
+    }
+
+    /**
      * Gets portfolio items by type.
      */
     public List<PortfolioResponse> getPortfolioByType(String userEmail, String type) {
@@ -108,7 +206,7 @@ public class PortfolioService {
         BigDecimal totalPnl = repository.getTotalPnLByUser(userEmail);
 
         BigDecimal pnlPercentage = BigDecimal.ZERO;
-        if (totalInvestment != null && totalInvestment.compareTo(BigDecimal.ZERO) != 0) {
+        if (totalInvestment != null && totalInvestment.compareTo(BigDecimal.ZERO) != 0 && totalPnl != null) {
             pnlPercentage = totalPnl.divide(totalInvestment, 6, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100));
         }
@@ -130,11 +228,16 @@ public class PortfolioService {
      * Updates current prices for all holdings (would be called by market data service).
      */
     @Transactional
-    public void updateCurrentPrices(String symbol, BigDecimal currentPrice) {
+    public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
         logger.info("Updating current prices for symbol {} to {}", symbol, currentPrice);
         try {
             int updatedCount = repository.updatePriceBySymbol(symbol, currentPrice);
-            logger.info("Successfully updated {} holdings for symbol {}", updatedCount, symbol);
+            if (updatedCount == 0) {
+                logger.warn("No investment holdings found for symbol: {}. No prices were updated.", symbol);
+            } else {
+                logger.info("Successfully updated {} holdings for symbol {}", updatedCount, symbol);
+            }
+            return updatedCount;
         } catch (Exception e) {
             logger.error("Failed to update current prices for symbol {}: {}", symbol, e.getMessage(), e);
             throw e;
@@ -190,11 +293,12 @@ public class PortfolioService {
 
     private PortfolioResponse mapToResponse(Investment investment) {
         BigDecimal totalInvestment = investment.getTotalInvestment();
-        BigDecimal currentValue = investment.getCurrentValue();
+        BigDecimal currentValue = investment.getCurrentValue() != null ? investment.getCurrentValue() : totalInvestment;
+        
         BigDecimal pnl = currentValue.subtract(totalInvestment);
         BigDecimal pnlPercentage = BigDecimal.ZERO;
 
-        if (totalInvestment.compareTo(BigDecimal.ZERO) != 0) {
+        if (totalInvestment.compareTo(BigDecimal.ZERO) != 0 && pnl.compareTo(BigDecimal.ZERO) != 0) {
             pnlPercentage = pnl.divide(totalInvestment, 4, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100));
         }

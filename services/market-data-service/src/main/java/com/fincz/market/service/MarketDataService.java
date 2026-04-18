@@ -124,7 +124,14 @@ public class MarketDataService {
     @Scheduled(fixedRate = 900000)
     public void scheduledPriceUpdate() {
         logger.info("Starting scheduled price update for all tracked symbols");
-        BASE_PRICES.keySet().forEach(this::updatePortfolioPrices);
+        BASE_PRICES.keySet().forEach(symbol -> {
+            try {
+                this.updatePortfolioPrices(symbol);
+            } catch (Exception e) {
+                // Catching exception here ensures one failing symbol doesn't stop the whole cycle
+                logger.error("Scheduled update failed for symbol {}: {}", symbol, e.getMessage());
+            }
+        });
     }
 
     /**

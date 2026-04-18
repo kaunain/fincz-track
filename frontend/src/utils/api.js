@@ -60,6 +60,12 @@ export const portfolioAPI = {
   updateInvestment: (id, data) => apiClient.put(`/portfolio/${id}`, data),
   deleteInvestment: (id) => apiClient.delete(`/portfolio/${id}`),
   getAnalyticsSummary: () => apiClient.get('/portfolio/analytics/summary'),
+  bulkAdd: (data) => apiClient.post('/portfolio/bulk', data),
+  importPortfolio: (formData) => apiClient.post('/portfolio/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
 };
 
 export const marketAPI = {
