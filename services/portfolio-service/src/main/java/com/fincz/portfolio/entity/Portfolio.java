@@ -17,23 +17,26 @@
 package com.fincz.portfolio.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
  * @author Kaunain Ahmad
  * @since April 2026
  *
- * Portfolio entity representing a user's investment holding.
+ * Investment entity representing a user's holding.
  */
 @Entity
-@Table(name = "portfolios")
+@Table(name = "investments")
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Portfolio {
 
     @Id
@@ -60,6 +63,9 @@ public class Portfolio {
 
     @Column(name = "current_price", precision = 19, scale = 4)
     private BigDecimal currentPrice; // Latest market price
+
+    @Column(name = "purchase_date")
+    private LocalDate purchaseDate;
 
     @Column(name = "total_investment", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalInvestment; // units * buyPrice
