@@ -26,6 +26,8 @@ import com.fincz.portfolio.repository.InvestmentRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.slf4j.Logger;
@@ -41,6 +43,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Set;
 import java.util.List;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
@@ -62,6 +65,8 @@ public class PortfolioService {
      * Adds a new investment to user's portfolio.
      */
     @Transactional
+    @CacheEvict(value = "netWorth", key = "#userEmail")
+    @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, key = "#userEmail")
     public PortfolioResponse addInvestment(String userEmail, AddInvestmentRequest request) {
         logger.info("Adding investment for user {}: symbol={}, units={}, buyPrice={}",
                    userEmail, request.getSymbol(), request.getUnits(), request.getBuyPrice());
@@ -87,6 +92,7 @@ public class PortfolioService {
     /**
      * Gets user's complete portfolio.
      */
+    @Cacheable(value = "portfolioList", key = "{#userEmail, #pageable}")
     public Page<PortfolioResponse> getPortfolio(String userEmail, Pageable pageable) {
         if (userEmail == null) return Page.empty();
         return repository.findByUserEmail(userEmail, pageable)
@@ -96,7 +102,8 @@ public class PortfolioService {
     /**
      * Bulk adds or updates investments from a list of requests.
      */
-    @Transactional
+    @CacheEvict(value = "netWorth", key = "#userEmail")
+    @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, key = "#userEmail")
     public void bulkAddInvestments(String userEmail, List<AddInvestmentRequest> requests) {
         logger.info("Bulk adding {} investments for user: {}", requests.size(), userEmail);
         
@@ -117,86 +124,79 @@ public class PortfolioService {
             throw new PortfolioException("Bulk import validation failed: " + errorReport.toString());
         }
 
-        for (AddInvestmentRequest request : requests) {
-            // Find existing by symbol to update, or create new
-            Investment investment = repository.findByUserEmailAndSymbol(userEmail, request.getSymbol())
-                    .orElseGet(() -> Investment.builder()
-                            .userEmail(userEmail)
-                            .symbol(request.getSymbol())
-                            .name(request.getName() != null ? request.getName() : request.getSymbol())
-                            .type(request.getType() != null ? request.getType() : "stock")
-                            .purchaseDate(request.getPurchaseDate() != null ? request.getPurchaseDate() : LocalDate.now())
-                            .build());
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (AddInvestmentRequest request : requests) {
+                executor.submit(() -> {
+                    Investment investment = repository.findByUserEmailAndSymbol(userEmail, request.getSymbol())
+                            .orElseGet(() -> Investment.builder()
+                                    .userEmail(userEmail)
+                                    .symbol(request.getSymbol())
+                                    .name(request.getName() != null ? request.getName() : request.getSymbol())
+                                    .type(request.getType() != null ? request.getType() : "stock")
+                                    .purchaseDate(request.getPurchaseDate() != null ? request.getPurchaseDate() : LocalDate.now())
+                                    .build());
 
-            investment.setUnits(request.getUnits());
-            investment.setBuyPrice(request.getBuyPrice());
-            
-            // Initialize current price only if it's a new investment
-            if (investment.getCurrentPrice() == null) {
-                investment.setCurrentPrice(request.getBuyPrice());
+                    investment.setUnits(request.getUnits());
+                    investment.setBuyPrice(request.getBuyPrice());
+                    
+                    if (investment.getCurrentPrice() == null) {
+                        investment.setCurrentPrice(request.getBuyPrice());
+                    }
+                    
+                    if (request.getName() != null) investment.setName(request.getName());
+                    if (request.getType() != null) investment.setType(request.getType());
+                    if (request.getPurchaseDate() != null) investment.setPurchaseDate(request.getPurchaseDate());
+
+                    repository.save(investment);
+                });
             }
-            
-            if (request.getName() != null) investment.setName(request.getName());
-            if (request.getType() != null) investment.setType(request.getType());
-            if (request.getPurchaseDate() != null) investment.setPurchaseDate(request.getPurchaseDate());
-
-            repository.save(investment);
         }
     }
 
     /**
      * Imports investments from a Zerodha holdings CSV file.
      */
-    @Transactional
+    @CacheEvict(value = "netWorth", key = "#userEmail")
+    @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, key = "#userEmail")
     public void importZerodhaCsv(String userEmail, MultipartFile file) {
         logger.info("Importing Zerodha CSV for user: {}", userEmail);
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
-            String line;
-            boolean isHeader = true;
-            while ((line = reader.readLine()) != null) {
-                if (isHeader) {
-                    isHeader = false;
-                    continue; // Skip header row
+            List<String> lines = reader.lines().skip(1).collect(Collectors.toList());
+
+            try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                for (String line : lines) {
+                    executor.submit(() -> {
+                        String[] columns = line.split(",");
+                        if (columns.length < 10) {
+                            logger.warn("Skipping malformed CSV line: {}", line);
+                            return;
+                        }
+
+                        String symbol = columns[0].trim();
+                        BigDecimal units = new BigDecimal(columns[3].trim());
+                        BigDecimal buyPrice = new BigDecimal(columns[8].trim());
+                        BigDecimal currentPrice = new BigDecimal(columns[9].trim());
+
+                        if (units.compareTo(BigDecimal.ZERO) <= 0) {
+                            return;
+                        }
+
+                        Investment investment = repository.findByUserEmailAndSymbol(userEmail, symbol)
+                                .orElseGet(() -> Investment.builder()
+                                        .userEmail(userEmail)
+                                        .symbol(symbol)
+                                        .name(symbol)
+                                        .type("stock")
+                                        .purchaseDate(LocalDate.now())
+                                        .build());
+
+                        investment.setUnits(units);
+                        investment.setBuyPrice(buyPrice);
+                        investment.setCurrentPrice(currentPrice);
+
+                        repository.save(investment);
+                    });
                 }
-                String[] columns = line.split(",");
-                
-                // Zerodha CSV format:
-                // 0: Symbol, 1: ISIN, 2: Sector, 3: Quantity Available, 4: Quantity Discrepant,
-                // 5: Quantity Long Term, 6: Quantity Pledged (Margin), 7: Quantity Pledged (Loan),
-                // 8: Average Price, 9: Previous Closing Price, 10: Unrealized P&L, 11: Unrealized P&L Pct.
-                
-                // Ensure enough columns are present
-                if (columns.length < 10) { 
-                    logger.warn("Skipping malformed CSV line: {}", line);
-                    continue;
-                }
-
-                String symbol = columns[0].trim();
-                BigDecimal units = new BigDecimal(columns[3].trim());
-                BigDecimal buyPrice = new BigDecimal(columns[8].trim());
-                BigDecimal currentPrice = new BigDecimal(columns[9].trim());
-
-                // Skip if quantity is 0 or less
-                if (units.compareTo(BigDecimal.ZERO) <= 0) {
-                    logger.debug("Skipping investment with zero or negative units for symbol: {}", symbol);
-                    continue;
-                }
-
-                // Check if symbol already exists for this user to update instead of duplicate
-                Investment investment = repository.findByUserEmailAndSymbol(userEmail, symbol)
-                        .orElseGet(() -> Investment.builder()
-                                .userEmail(userEmail)
-                                .symbol(symbol)
-                                .name(symbol) // Zerodha CSV lacks full names, defaulting to symbol
-                                .type("stock")
-                                .purchaseDate(LocalDate.now())
-                                .build());
-
-                investment.setUnits(units);
-                investment.setBuyPrice(buyPrice);
-                investment.setCurrentPrice(currentPrice);
-
-                repository.save(investment); // Save each investment
             }
             logger.info("Zerodha import completed for user: {}", userEmail);
         } catch (Exception e) {
@@ -208,6 +208,7 @@ public class PortfolioService {
     /**
      * Gets portfolio items by type.
      */
+    @Cacheable(value = "portfolioByType", key = "{#userEmail, #type}")
     public List<PortfolioResponse> getPortfolioByType(String userEmail, String type) {
         if (userEmail == null) return java.util.Collections.emptyList();
         return repository.findByUserEmailAndType(userEmail, type)
@@ -219,6 +220,7 @@ public class PortfolioService {
     /**
      * Calculates user's net worth.
      */
+    @Cacheable(value = "netWorth", key = "#userEmail")
     public NetWorthResponse getNetWorth(String userEmail) {
         logger.debug("Calculating net worth for user: {}", userEmail);
         if (userEmail == null) return new NetWorthResponse(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
@@ -250,6 +252,8 @@ public class PortfolioService {
      * Updates current prices for all holdings (would be called by market data service).
      */
     @Transactional
+    @CacheEvict(value = "netWorth", allEntries = true)
+    @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, allEntries = true)
     public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
         logger.info("Updating current prices for symbol {} to {}", symbol, currentPrice);
         try {
@@ -270,6 +274,7 @@ public class PortfolioService {
      * Updates an existing investment.
      */
     @Transactional
+    @CacheEvict(value = "netWorth", key = "#userEmail")
     public PortfolioResponse updateInvestment(Long id, String userEmail, AddInvestmentRequest request) {
         logger.info("Updating investment {} for user {}", id, userEmail);
 
@@ -300,6 +305,7 @@ public class PortfolioService {
      * Deletes an investment from user's portfolio.
      */
     @Transactional
+    @CacheEvict(value = "netWorth", key = "#userEmail")
     public void deleteInvestment(Long id, String userEmail) {
         logger.info("Deleting investment {} for user {}", id, userEmail);
 

@@ -33,8 +33,8 @@ NC='\033[0m' # No Color
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICES_DIR="$PROJECT_ROOT/services"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
-SERVICES=("auth-service" "user-service" "portfolio-service" "market-data-service" "notification-service" "api-gateway")
-REQUIRED_PORTS=(5432 8080 8081 8082 8083 8084 8085)
+SERVICES=("user-service" "portfolio-service" "market-data-service" "notification-service" "api-gateway")
+REQUIRED_PORTS=(5432 8080 8082 8083 8084 8085)
 
 # Counters
 TOTAL_ISSUES=0
@@ -153,7 +153,6 @@ check_ports() {
     local port_names=(
         "5432:PostgreSQL"
         "8080:API Gateway"
-        "8081:Auth Service"
         "8082:User Service"
         "8083:Portfolio Service"
         "8084:Market Data Service"
@@ -420,7 +419,6 @@ check_service_health() {
     
     local health_checks=(
         "8080:GATEWAY:http://localhost:8080/actuator/health"
-        "8081:AUTH:http://localhost:8081/actuator/health"
         "8082:USER:http://localhost:8082/actuator/health"
         "8083:PORTFOLIO:http://localhost:8083/actuator/health"
     )

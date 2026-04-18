@@ -20,10 +20,61 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    let friendlyMessage = "An unexpected error occurred. Please try again.";
+    const errorMessage = error.message || "";
+    const errorLower = errorMessage.toLowerCase();
+    
+    // Get response data content as string for searching, whether it's an object or string
+    const responseData = error.response?.data;
+    const rawDataContent = typeof responseData === 'object' ? JSON.stringify(responseData) : (responseData || "");
+    const dataString = rawDataContent.toLowerCase();
+
+    // Priority Check: Search for connection failures in the message and response body
+    if (error.code === 'ERR_NETWORK' || 
+        errorLower.includes('connection refused') || 
+        errorLower.includes('failed to fetch') ||
+        errorLower.includes('finishconnect') ||
+        dataString.includes('connection refused') ||
+        dataString.includes('finishconnect') ||
+        errorMessage === 'Network Error') {
+
+      const fullSearchText = errorMessage + " " + dataString;
+      const portMatch = fullSearchText.match(/:(\d{4,5})/);
+      const port = portMatch ? portMatch[1] : null;
+      
+      const serviceMap = {
+        '8080': 'Main System',
+        '8082': 'User Identity System',
+        '8083': 'Portfolio Management System',
+        '8084': 'Live Market Feed',
+        '8085': 'Alert System'
+      };
+
+      const downService = serviceMap[port] || 'System';
+      friendlyMessage = `⚠️ Our ${downService} is currently unreachable. This could be due to a temporary network interruption. Please try refreshing the page in a few moments.`;
+    } 
+    // Fallback for generic network errors
+    else if (error.code === 'ERR_NETWORK' || errorLower.includes('failed to fetch') || errorMessage === 'Network Error') {
+      friendlyMessage = "Unable to connect to the API Gateway. Please check if the gateway (Port 8080) is running.";
+    } else if (error.code === 'ECONNABORTED') {
+      friendlyMessage = "The request timed out. Our servers are taking longer than usual to respond.";
+    } else if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem('auth_token');
       window.location.href = '/login';
+      return Promise.reject(error);
+    } else if (error.response?.data) {
+      if (typeof error.response.data === 'string') {
+        friendlyMessage = error.response.data;
+      } else {
+        friendlyMessage = error.response.data.message || error.response.data.error || friendlyMessage;
+      }
+    } else if (error.message) {
+      friendlyMessage = error.message;
     }
+
+    // Attach the user-friendly message to the error object
+    error.userMessage = friendlyMessage;
+    
     return Promise.reject(error);
   }
 );

@@ -84,21 +84,7 @@ const AddInvestment = () => {
       }, 1500);
     } catch (err) {
       console.error('Add investment error:', err);
-      let errorMessage = `Failed to ${isEdit ? 'update' : 'add'} investment. Please try again.`;
-      
-      if (err.response?.data) {
-        if (typeof err.response.data === 'string') {
-          errorMessage = err.response.data;
-        } else if (err.response.data.message) {
-          errorMessage = err.response.data.message;
-        } else if (err.response.data.error || err.response.data.status === 405) {
-          errorMessage = err.response.data.error;
-        }
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
+      setError(err.userMessage || `Failed to ${isEdit ? 'update' : 'add'} investment. Please try again.`);
     } finally {
       setLoading(false);
     }

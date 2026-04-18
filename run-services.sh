@@ -81,7 +81,7 @@ if [ "$SERVICE" = "stop" ]; then
     pkill -f "spring-boot:run" 2>/dev/null || true
 
     # Kill processes on specific ports
-    for port in 8080 8082 8083 8084 8085; do
+    for port in 8080 8081 8082 8083 8084 8085; do
         lsof -ti:$port | xargs kill -9 2>/dev/null || true
     done
 

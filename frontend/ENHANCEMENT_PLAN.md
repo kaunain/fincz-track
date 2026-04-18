@@ -25,7 +25,7 @@
 - [x] **CRUD Extensions**: Add "Edit" and "Delete" functionality to the investment list. (UI & logic implemented)
 - [x] **Asset Tagging**: Investments ko categories mein group karna (e.g., "Retirement", "Emergency Fund", "House"). (UI display implemented)
 - [x] **Advanced Tables**: Implement `TanStack Table` for sorting, filtering, and pagination in the Reports view. (Robust internal implementation added)
-- [x] **CSV Import/Export**: Build a utility to bulk upload transactions from broker exports. (Export utility implemented)
+- [x] **CSV Import/Export**: Robust bulk import with auto-mapping (Zerodha) and manual mapping for custom files. (Fully implemented with multi-step wizard and validation)
 - [x] **Search**: Global search bar to find specific assets across types. (UI & localized logic implemented)
 
 ## 🟡 Phase 3: Analytics & Financial Logic
@@ -46,6 +46,13 @@
 - [ ] **Watchlist**: Current portfolio ke bahar stocks track karne ke liye custom list.
 - [ ] **Broker Auto-Sync**: Integration with external APIs or email scraping to auto-fetch transactions.
 - [ ] **PWA Support**: Transform the web app into a Progressive Web App for an "App-like" experience on mobile.
+
+### 💹 Market Data Service Enhancements
+- [ ] **Real-time API Integration**: Replace mock data with Alpha Vantage, Yahoo Finance, or Twelve Data APIs.
+- [ ] **FX & Multi-Currency**: Implement an exchange rate service to support global assets (USD/INR/EUR).
+- [ ] **Historical Price Engine**: Fetch and store End-of-Day (EOD) historical prices in a time-series database for trend analysis.
+- [ ] **Resilience Patterns**: Implement Resilience4j circuit breakers and rate limiting for external financial API calls.
+- [ ] **WebSocket Price Pushes**: Stream live price updates directly to the frontend during market hours.
 
 ## 🟣 Phase 5: Wealth Management & Intelligence (Advanced)
 - [ ] **Automated Rebalancing**: Alert user when asset allocation deviates >5% from target.

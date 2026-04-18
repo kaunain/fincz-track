@@ -13,6 +13,7 @@ import { formatCurrency } from '../utils/formatters';
 import { calculateInvestmentValue } from '../utils/portfolioUtils';
 import { usePagination } from '../hooks/usePagination';
 import { useSearch } from '../context/SearchContext';
+import SystemHealthFooter from '../components/SystemHealthFooter';
 
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
 const ITEMS_PER_PAGE = 5;
@@ -23,6 +24,7 @@ const Dashboard = () => {
   const [netWorth, setNetWorth] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState('');
   const { searchTerm } = useSearch();
@@ -133,6 +135,8 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError('');
+      setIsOffline(false);
       const [portfolioRes, netWorthRes, analyticsRes] = await Promise.all([
         portfolioAPI.getPortfolio(),
         portfolioAPI.getNetWorth(),
@@ -150,21 +154,11 @@ const Dashboard = () => {
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Dashboard data error:', err);
-      let errorMessage = 'Failed to load dashboard data';
-      
-      if (err.response?.data) {
-        if (typeof err.response.data === 'string') {
-          errorMessage = err.response.data;
-        } else if (err.response.data.message) {
-          errorMessage = err.response.data.message;
-        } else if (err.response.data.error) {
-          errorMessage = err.response.data.error;
-        }
-      } else if (err.message) {
-        errorMessage = err.message;
+      const msg = err.userMessage || 'Failed to load dashboard data. Please try again.';
+      setError(msg);
+      if (err.code === 'ERR_NETWORK' || msg.includes('unreachable') || msg.includes('unavailable')) {
+        setIsOffline(true);
       }
-      
-      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -444,6 +438,8 @@ const Dashboard = () => {
             )}
           </Card>
         </div>
+
+        <SystemHealthFooter />
       </div>
 
       <ConfirmDialog
