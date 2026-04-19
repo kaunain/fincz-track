@@ -22,7 +22,7 @@ public class MarketDataService {
     private final WebClient alphaVantageClient;
     private final WebClient portfolioClient;
 
-    @Value("${app.market.api-key}")
+    @Value("${app.market.api-key:${MARKET_API_KEY:}}")
     private String apiKey;
 
     public MarketDataService(WebClient.Builder webClientBuilder, 
