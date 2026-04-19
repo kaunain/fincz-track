@@ -43,6 +43,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Set;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
@@ -65,7 +66,6 @@ public class PortfolioService {
      * Adds a new investment to user's portfolio.
      */
     @Transactional
-    @CacheEvict(value = "netWorth", key = "#userEmail")
     @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, key = "#userEmail")
     public PortfolioResponse addInvestment(String userEmail, AddInvestmentRequest request) {
         logger.info("Adding investment for user {}: symbol={}, units={}, buyPrice={}",
@@ -102,7 +102,6 @@ public class PortfolioService {
     /**
      * Bulk adds or updates investments from a list of requests.
      */
-    @CacheEvict(value = "netWorth", key = "#userEmail")
     @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, key = "#userEmail")
     public void bulkAddInvestments(String userEmail, List<AddInvestmentRequest> requests) {
         logger.info("Bulk adding {} investments for user: {}", requests.size(), userEmail);
@@ -124,7 +123,8 @@ public class PortfolioService {
             throw new PortfolioException("Bulk import validation failed: " + errorReport.toString());
         }
 
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        ExecutorService executor = Executors.newFixedThreadPool(Math.max(1, Math.min(requests.size(), Runtime.getRuntime().availableProcessors())));
+        try {
             for (AddInvestmentRequest request : requests) {
                 executor.submit(() -> {
                     Investment investment = repository.findByUserEmailAndSymbol(userEmail, request.getSymbol())
@@ -150,20 +150,22 @@ public class PortfolioService {
                     repository.save(investment);
                 });
             }
+        } finally {
+            executor.shutdown();
         }
     }
 
     /**
      * Imports investments from a Zerodha holdings CSV file.
      */
-    @CacheEvict(value = "netWorth", key = "#userEmail")
     @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, key = "#userEmail")
     public void importZerodhaCsv(String userEmail, MultipartFile file) {
         logger.info("Importing Zerodha CSV for user: {}", userEmail);
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
             List<String> lines = reader.lines().skip(1).collect(Collectors.toList());
 
-            try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            ExecutorService executor = Executors.newFixedThreadPool(Math.max(1, Math.min(lines.size(), Runtime.getRuntime().availableProcessors())));
+            try {
                 for (String line : lines) {
                     executor.submit(() -> {
                         String[] columns = line.split(",");
@@ -197,6 +199,8 @@ public class PortfolioService {
                         repository.save(investment);
                     });
                 }
+            } finally {
+                executor.shutdown();
             }
             logger.info("Zerodha import completed for user: {}", userEmail);
         } catch (Exception e) {
@@ -252,7 +256,6 @@ public class PortfolioService {
      * Updates current prices for all holdings (would be called by market data service).
      */
     @Transactional
-    @CacheEvict(value = "netWorth", allEntries = true)
     @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, allEntries = true)
     public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
         logger.info("Updating current prices for symbol {} to {}", symbol, currentPrice);
