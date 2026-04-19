@@ -3,6 +3,7 @@ package com.fincz.market.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
+import com.fincz.market.dto.StockPriceResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -11,6 +12,7 @@ import reactor.util.retry.Retry;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -81,5 +83,25 @@ public class MarketDataService {
                 .retrieve()
                 .toBodilessEntity()
                 .then();
+    }
+
+    public StockPriceResponse getStockPrice(String symbol) {
+        log.info("Fetching stock price for symbol: {}", symbol);
+        BigDecimal price = fetchLatestPrice(symbol)
+                .onErrorResume(e -> {
+                    log.error("Error fetching price for {}: {}", symbol, e.getMessage());
+                    return Mono.just(BigDecimal.ZERO);
+                })
+                .block();
+
+        return new StockPriceResponse(
+                symbol,
+                symbol,
+                price != null ? price : BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                LocalDateTime.now()
+        );
     }
 }
