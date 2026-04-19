@@ -273,6 +273,14 @@ public class PortfolioService {
         }
     }
 
+    public List<String> getDistinctSymbols() {
+        return repository.findDistinctSymbols();
+    }
+
+    public BigDecimal getCurrentPriceForSymbol(String symbol) {
+        return repository.findCurrentPriceBySymbol(symbol).orElse(null);
+    }
+
     /**
      * Updates an existing investment.
      */

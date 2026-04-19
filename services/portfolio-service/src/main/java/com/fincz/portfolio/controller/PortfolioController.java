@@ -161,6 +161,22 @@ public class PortfolioController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/internal/prices/{symbol}")
+    public ResponseEntity<BigDecimal> getCurrentPrice(@PathVariable String symbol) {
+        log.debug("Internal current-price request for symbol: {}", symbol);
+        BigDecimal currentPrice = service.getCurrentPriceForSymbol(symbol);
+        if (currentPrice == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(currentPrice);
+    }
+
+    @GetMapping("/internal/symbols")
+    public ResponseEntity<List<String>> getDistinctSymbols() {
+        log.debug("Internal symbol list request");
+        return ResponseEntity.ok(service.getDistinctSymbols());
+    }
+
     /**
      * Updates an existing investment.
      */
