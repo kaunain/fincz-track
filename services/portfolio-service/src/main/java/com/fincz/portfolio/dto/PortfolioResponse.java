@@ -22,6 +22,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -47,6 +48,7 @@ public class PortfolioResponse {
     private BigDecimal currentValue;
     private BigDecimal pnl;
     private BigDecimal pnlPercentage;
+    private LocalDate purchaseDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -354,6 +354,7 @@ public class PortfolioService {
                 currentValue,
                 pnl,
                 pnlPercentage,
+                investment.getPurchaseDate(),
                 investment.getCreatedAt(),
                 investment.getUpdatedAt()
         );

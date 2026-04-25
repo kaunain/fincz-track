@@ -17,7 +17,7 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-        cacheManager.setCacheNames(Arrays.asList("netWorth", "portfolioList", "portfolioByType"));
+        cacheManager.setCacheNames(Arrays.asList("netWorth", "portfolioList", "portfolioByType", "analyticsSummary"));
         cacheManager.setCaffeine(caffeineCacheBuilder());
         return cacheManager;
     }

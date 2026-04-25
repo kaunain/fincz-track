@@ -1,25 +1,41 @@
 package com.fincz.portfolio.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import lombok.*;
 import java.math.BigDecimal;
-import java.util.List;
+import java.time.LocalDate;
 import java.util.Map;
+import java.util.HashMap;
 
+/**
+ * DTO for portfolio analytics summary.
+ * Matches the requirements for CAGR, Concentration Risk, and Tax analysis.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AnalyticsResponse {
-    // Maps asset type (e.g., STOCKS, GOLD) to its percentage of the total portfolio
-    private Map<String, Double> concentrationRisk;
-    // Maps investment name to its calculated CAGR percentage
-    private Map<String, Double> performanceMetrics;
-    // Contains tax-specific keys like totalInvested80C and remaining80CLimit
-    private Map<String, BigDecimal> taxSummary;
-    // List of investments currently at a loss that could be used to offset gains
-    private List<Map<String, Object>> taxLossOpportunities;
+
+    /**
+     * Map of Symbol to its Compound Annual Growth Rate.
+     */
+    @Builder.Default
+    private Map<String, BigDecimal> cagrPerAsset = new HashMap<>();
+
+    /**
+     * Map of Asset Type to its percentage allocation in the portfolio.
+     */
+    @Builder.Default
+    private Map<String, BigDecimal> concentrationRisk = new HashMap<>();
+
+    /**
+     * Historical net worth trend data (Date to Value).
+     */
+    @Builder.Default
+    private Map<LocalDate, BigDecimal> netWorthHistory = new HashMap<>();
+
+    /**
+     * The date this analytics snapshot was generated.
+     */
+    private LocalDate lastCalculated;
 }

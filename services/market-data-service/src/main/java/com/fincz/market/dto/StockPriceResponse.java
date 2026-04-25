@@ -39,8 +39,8 @@ public class StockPriceResponse {
     private String symbol;
     private String name;
     private BigDecimal price;
-    private BigDecimal change;
-    private BigDecimal changePercent;
-    private BigDecimal volume;
+    private BigDecimal open;
+    private BigDecimal high;
+    private BigDecimal low;
     private LocalDateTime lastUpdated;
 }
