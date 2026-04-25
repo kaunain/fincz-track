@@ -24,6 +24,9 @@ import com.fincz.portfolio.service.FinancialAnalyticsService;
 import com.fincz.portfolio.service.PortfolioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +39,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author Kaunain Ahmad
@@ -57,6 +61,11 @@ public class PortfolioController {
      * Adds a new investment to user's portfolio.
      */
     @PostMapping("/add")
+    @Caching(evict = {
+        @CacheEvict(value = "portfolioList", key = "#userEmail"),
+        @CacheEvict(value = "netWorth", key = "#userEmail"),
+        @CacheEvict(value = "analyticsSummary", key = "#userEmail")
+    })
     public ResponseEntity<PortfolioResponse> addInvestment(
             @RequestHeader("X-User-Email") String userEmail,
             @Valid @RequestBody AddInvestmentRequest request) {
@@ -72,6 +81,7 @@ public class PortfolioController {
      * Gets user's complete portfolio.
      */
     @GetMapping
+    @Cacheable(value = "portfolioList", key = "#userEmail + '-' + #page + '-' + #size + '-' + #sort")
     public ResponseEntity<Page<PortfolioResponse>> getPortfolio(
             @RequestHeader("X-User-Email") String userEmail,
             @RequestParam(defaultValue = "0") int page,
@@ -90,6 +100,7 @@ public class PortfolioController {
      * Imports investments from a CSV file.
      */
     @PostMapping("/import")
+    @CacheEvict(value = {"portfolioList", "netWorth", "analyticsSummary"}, key = "#userEmail")
     public ResponseEntity<String> importInvestments(
             @RequestHeader("X-User-Email") String userEmail,
             @RequestParam("file") MultipartFile file) {
@@ -101,6 +112,7 @@ public class PortfolioController {
      * Bulk adds or updates investments.
      */
     @PostMapping("/bulk")
+    @CacheEvict(value = {"portfolioList", "netWorth", "analyticsSummary"}, key = "#userEmail")
     public ResponseEntity<Void> bulkAdd(
             @RequestHeader("X-User-Email") String userEmail,
             @RequestBody List<AddInvestmentRequest> requests) {
@@ -112,6 +124,7 @@ public class PortfolioController {
      * Gets portfolio items by investment type.
      */
     @GetMapping("/type/{type}")
+    @Cacheable(value = "portfolioByType", key = "#userEmail + '-' + #type")
     public ResponseEntity<List<PortfolioResponse>> getPortfolioByType(
             @RequestHeader("X-User-Email") String userEmail,
             @PathVariable String type) {
@@ -126,6 +139,7 @@ public class PortfolioController {
      * Gets user's net worth calculation.
      */
     @GetMapping("/networth")
+    @Cacheable(value = "netWorth", key = "#userEmail")
     public ResponseEntity<NetWorthResponse> getNetWorth(@RequestHeader("X-User-Email") String userEmail) {
         log.debug("User {} requesting net worth calculation", userEmail);
 
@@ -138,6 +152,7 @@ public class PortfolioController {
      * Gets user's portfolio analytics summary (CAGR, Tax, Concentration).
      */
     @GetMapping("/analytics/summary")
+    @Cacheable(value = "analyticsSummary", key = "#userEmail")
     public ResponseEntity<AnalyticsResponse> getAnalyticsSummary(@RequestHeader("X-User-Email") String userEmail) {
         log.info("User {} requesting portfolio analytics summary", userEmail);
 
@@ -146,10 +161,26 @@ public class PortfolioController {
     }
 
     /**
+     * Goal-based simulation to find required monthly savings.
+     */
+    @GetMapping("/analytics/goal-seek")
+    public ResponseEntity<Map<String, Object>> getGoalSeek(
+            @RequestHeader("X-User-Email") String userEmail,
+            @RequestParam BigDecimal target,
+            @RequestParam int years,
+            @RequestParam(required = false) BigDecimal expectedReturn) {
+        
+        log.info("User {} seeking goal: target={}, years={}", userEmail, target, years);
+        Map<String, Object> result = analyticsService.calculateRequiredMonthlyInvestment(userEmail, target, years, expectedReturn);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
      * Internal endpoint to update current market prices for a symbol.
      * This affects all user holdings for that symbol.
      */
     @PutMapping("/internal/prices/{symbol}")
+    @CacheEvict(value = {"netWorth", "analyticsSummary", "portfolioList", "portfolioByType"}, allEntries = true)
     public ResponseEntity<Void> updatePrices(
             @PathVariable String symbol,
             @RequestParam BigDecimal price) {
@@ -181,6 +212,11 @@ public class PortfolioController {
      * Updates an existing investment.
      */
     @PutMapping("/{id}")
+    @Caching(evict = {
+        @CacheEvict(value = "portfolioList", key = "#userEmail"),
+        @CacheEvict(value = "netWorth", key = "#userEmail"),
+        @CacheEvict(value = "analyticsSummary", key = "#userEmail")
+    })
     public ResponseEntity<PortfolioResponse> updateInvestment(
             @RequestHeader("X-User-Email") String userEmail,
             @PathVariable Long id,
@@ -197,6 +233,11 @@ public class PortfolioController {
      * Deletes an investment from user's portfolio.
      */
     @DeleteMapping("/{id}")
+    @Caching(evict = {
+        @CacheEvict(value = "portfolioList", key = "#userEmail"),
+        @CacheEvict(value = "netWorth", key = "#userEmail"),
+        @CacheEvict(value = "analyticsSummary", key = "#userEmail")
+    })
     public ResponseEntity<Void> deleteInvestment(
             @RequestHeader("X-User-Email") String userEmail,
             @PathVariable Long id) {

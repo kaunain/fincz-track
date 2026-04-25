@@ -17,6 +17,7 @@
 package com.fincz.market.controller;
 
 import com.fincz.market.dto.StockPriceResponse;
+import com.fincz.market.entity.StockPriceHistory;
 import com.fincz.market.service.MarketDataService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -26,6 +27,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * @author Kaunain Ahmad
@@ -46,17 +49,19 @@ public class MarketDataController {
      * Gets current stock price for a symbol.
      */
     @GetMapping("/price/{symbol}")
-    public ResponseEntity<StockPriceResponse> getStockPrice(@PathVariable String symbol) {
+    public Mono<StockPriceResponse> getStockPrice(@PathVariable String symbol) {
         logger.debug("Requesting stock price for symbol: {}", symbol);
+        return service.getStockPrice(symbol)
+                .doOnNext(price -> logger.info("Retrieved stock price for {}: ${}", symbol, price.getPrice()))
+                .doOnError(e -> logger.error("Failed to retrieve stock price for symbol {}: {}", symbol, e.getMessage()));
+    }
 
-        try {
-            StockPriceResponse price = service.getStockPrice(symbol);
-            logger.info("Retrieved stock price for {}: ${}", symbol, price.getPrice());
-            return ResponseEntity.ok(price);
-        } catch (Exception e) {
-            logger.error("Failed to retrieve stock price for symbol {}: {}", symbol, e.getMessage(), e);
-            throw e;
-        }
+    /**
+     * Gets 30-day price history for a symbol.
+     */
+    @GetMapping("/history/{symbol}")
+    public Flux<StockPriceHistory> getStockHistory(@PathVariable String symbol) {
+        return service.getPriceHistory(symbol);
     }
 
     /**

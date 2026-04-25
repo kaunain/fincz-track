@@ -112,6 +112,7 @@ export const portfolioAPI = {
   deleteInvestment: (id) => apiClient.delete(`/portfolio/${id}`),
   getAnalyticsSummary: () => apiClient.get('/portfolio/analytics/summary'),
   bulkAdd: (data) => apiClient.post('/portfolio/bulk', data),
+  updatePrices: (data) => apiClient.put('/portfolio/prices', data),
   importPortfolio: (formData) => apiClient.post('/portfolio/import', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',

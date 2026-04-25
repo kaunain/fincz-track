@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { portfolioAPI } from '../utils/api'; // Ensure portfolioAPI is imported
-import { FileText, Pencil, Trash2, Download, Search, ArrowUpDown, Tag, Upload, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'; // Add Upload icon
+import { portfolioAPI, marketAPI } from '../utils/api';
+import { FileText, Pencil, Trash2, Download, Search, ArrowUpDown, Tag, Upload, ChevronLeft, ChevronRight, RefreshCw, TrendingUp, TrendingDown, Zap, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
@@ -25,6 +25,7 @@ const ReportsPage = () => {
   const [portfolio, setPortfolio] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasUnsavedPrices, setHasUnsavedPrices] = useState(false);
   const [error, setError] = useState('');
   const { searchTerm, setSearchTerm } = useSearch();
   const [fileForImport, setFileForImport] = useState(null);
@@ -184,6 +185,75 @@ const ReportsPage = () => {
     }
   };
 
+  const refreshMarketPrices = async () => {
+    if (!portfolio || portfolio.length === 0) return;
+    
+    const symbols = [...new Set(portfolio.map(item => item.symbol))];
+    const loadingToast = toast.loading(`Refreshing ${symbols.length} market assets...`);
+    
+    try {
+      setLoading(true);
+      const results = [];
+      
+      // Sequential fetch with slight delay to respect API rate limits
+      for (let i = 0; i < symbols.length; i++) {
+        const res = await marketAPI.getPrice(symbols[i]);
+        results.push(res);
+        if (symbols.length > 1) await new Promise(r => setTimeout(r, 200));
+      }
+      
+      const updatedPortfolio = portfolio.map(item => {
+        const match = results.find(r => r.data.symbol === item.symbol);
+        if (match && match.data.price) {
+          const newPrice = parseFloat(match.data.price);
+          const units = parseFloat(item.units);
+          const buyPrice = parseFloat(item.buyPrice);
+          const newValue = newPrice * units;
+          const newPnl = newValue - (buyPrice * units);
+          
+          return {
+            ...item,
+            currentPrice: newPrice,
+            currentValue: newValue,
+            pnl: newPnl,
+            pnlPercentage: (newPnl / (buyPrice * units)) * 100
+          };
+        }
+        return item;
+      });
+      
+      setPortfolio(updatedPortfolio);
+      setHasUnsavedPrices(true);
+      toast.success('Portfolio updated with latest market data', { id: loadingToast });
+    } catch (err) {
+      toast.error('Failed to fetch market data. Check Market Service status.', { id: loadingToast });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveMarketPrices = async () => {
+    if (!portfolio || portfolio.length === 0) return;
+    
+    const loadingToast = toast.loading('Saving updated prices to database...');
+    try {
+      setLoading(true);
+      const priceUpdates = portfolio.map(item => ({
+        symbol: item.symbol,
+        currentPrice: item.currentPrice
+      }));
+      
+      await portfolioAPI.updatePrices(priceUpdates);
+      setHasUnsavedPrices(false);
+      toast.success('All prices saved successfully', { id: loadingToast });
+      fetchPortfolioData();
+    } catch (err) {
+      toast.error('Failed to save prices to database', { id: loadingToast });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const {
     isModalOpen: isDeleteModalOpen,
     isDeleting,
@@ -227,6 +297,25 @@ const ReportsPage = () => {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
           </div>
           <div className="flex items-center gap-3">
+            <button 
+              onClick={refreshMarketPrices}
+              disabled={loading || !portfolio?.length}
+              className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium disabled:opacity-50"
+              title="Get Live Market Prices"
+            >
+              <Zap size={18} fill="currentColor" />
+              <span className="hidden md:inline">Live Prices</span>
+            </button>
+            {hasUnsavedPrices && (
+              <button 
+                onClick={saveMarketPrices}
+                disabled={loading}
+                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium animate-pulse"
+              >
+                <CheckCircle2 size={18} />
+                <span className="hidden md:inline">Save Updates</span>
+              </button>
+            )}
             <button 
               onClick={() => navigate('/import')}
               className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium"
@@ -470,6 +559,12 @@ const ReportsPage = () => {
                     <th onClick={() => handleSort('buyPrice')} className="px-6 py-3 text-right font-semibold text-gray-900 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
                       <div className="flex items-center justify-end gap-1">Buy Price <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100" /></div>
                     </th>
+                    <th onClick={() => handleSort('cagr')} className="px-6 py-3 text-right font-semibold text-gray-900 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                      <div className="flex items-center justify-end gap-1">CAGR % <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100" /></div>
+                    </th>
+                    <th onClick={() => handleSort('pnl')} className="px-6 py-3 text-right font-semibold text-gray-900 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                      <div className="flex items-center justify-end gap-1">Gain/Loss <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100" /></div>
+                    </th>
                     <th onClick={() => handleSort('totalValue')} className="px-6 py-3 text-right font-semibold text-gray-900 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
                       <div className="flex items-center justify-end gap-1">Total Value <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100" /></div>
                     </th>
@@ -495,6 +590,24 @@ const ReportsPage = () => {
                       <td className="px-6 py-4 text-right text-gray-700 dark:text-gray-300">{parseFloat(item.units).toLocaleString()}</td>
                       <td className="px-6 py-4 text-right text-gray-700 dark:text-gray-300">
                         ₹{formatCurrency(parseFloat(item.buyPrice))}
+                      </td>
+                      <td className={`px-6 py-4 text-right font-semibold ${parseFloat(item.cagr || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {item.cagr !== undefined ? (
+                          `${parseFloat(item.cagr).toFixed(2)}%`
+                        ) : (
+                          <span className="text-gray-400">--</span>
+                        )}
+                      </td>
+                      <td className={`px-6 py-4 text-right font-bold ${parseFloat(item.pnl) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-center gap-1">
+                            {parseFloat(item.pnl) >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                            ₹{formatCurrency(Math.abs(item.pnl))}
+                          </div>
+                          <span className="text-[10px] opacity-80">
+                            {parseFloat(item.pnlPercentage).toFixed(2)}%
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-right font-semibold text-blue-600 dark:text-blue-400">
                         ₹{formatCurrency(item.currentValue)}

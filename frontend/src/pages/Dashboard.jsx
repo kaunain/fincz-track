@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { portfolioAPI } from '../utils/api';
-import { TrendingUp, DollarSign, Percent, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import { portfolioAPI, marketAPI } from '../utils/api';
+import { TrendingUp, DollarSign, Percent, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw, Upload, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -25,6 +25,7 @@ const Dashboard = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
+  const [hasUnsavedPrices, setHasUnsavedPrices] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState('');
   const { searchTerm } = useSearch();
@@ -85,9 +86,36 @@ const Dashboard = () => {
     }));
   }, [analytics]);
 
-  const totalValue = useMemo(() => netWorth ? parseFloat(netWorth.currentValue || 0) : 0, [netWorth]);
-  const profitLoss = useMemo(() => netWorth ? parseFloat(netWorth.totalPnl || 0) : 0, [netWorth]);
-  const profitPercentage = useMemo(() => netWorth ? parseFloat(netWorth.pnlPercentage || 0) : 0, [netWorth]);
+  const historyData = useMemo(() => {
+    if (!analytics || !analytics.netWorthHistory) return [];
+    // Sort by date to ensure the line chart displays chronologically
+    return Object.entries(analytics.netWorthHistory)
+      .map(([date, value]) => ({ date, value: parseFloat(value) }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [analytics]);
+
+  // Derived metrics from portfolio array to ensure UI updates on live price refresh
+  const totalValue = useMemo(() => {
+    if (portfolio && portfolio.length > 0) {
+      return portfolio.reduce((sum, item) => sum + parseFloat(item.currentValue || 0), 0);
+    }
+    return netWorth ? parseFloat(netWorth.currentValue || 0) : 0;
+  }, [portfolio, netWorth]);
+
+  const profitLoss = useMemo(() => {
+    if (portfolio && portfolio.length > 0) {
+      return portfolio.reduce((sum, item) => sum + parseFloat(item.pnl || 0), 0);
+    }
+    return netWorth ? parseFloat(netWorth.totalPnl || 0) : 0;
+  }, [portfolio, netWorth]);
+
+  const profitPercentage = useMemo(() => {
+    if (portfolio && portfolio.length > 0) {
+      const totalInv = portfolio.reduce((sum, item) => sum + (parseFloat(item.units) * parseFloat(item.buyPrice)), 0);
+      return totalInv > 0 ? parseFloat(((profitLoss / totalInv) * 100).toFixed(2)) : 0;
+    }
+    return netWorth ? parseFloat(netWorth.pnlPercentage || 0) : 0;
+  }, [portfolio, netWorth, profitLoss]);
 
   const insights = useMemo(() => {
     if (!portfolio || portfolio.length === 0) return [];
@@ -164,6 +192,75 @@ const Dashboard = () => {
     }
   };
 
+  const refreshMarketPrices = async () => {
+    if (!portfolio || portfolio.length === 0) return;
+    
+    const symbols = [...new Set(portfolio.map(item => item.symbol))];
+    const loadingToast = toast.loading(`Refreshing ${symbols.length} market assets...`);
+    
+    try {
+      setLoading(true);
+      const results = [];
+      
+      // Sequential fetch with slight delay to respect API rate limits (e.g. Alpha Vantage free tier)
+      for (let i = 0; i < symbols.length; i++) {
+        const res = await marketAPI.getPrice(symbols[i]);
+        results.push(res);
+        if (symbols.length > 1) await new Promise(r => setTimeout(r, 200)); // 200ms gap
+      }
+      
+      const updatedPortfolio = portfolio.map(item => {
+        const match = results.find(r => r.data.symbol === item.symbol);
+        if (match && match.data.price) {
+          const newPrice = parseFloat(match.data.price);
+          const units = parseFloat(item.units);
+          const buyPrice = parseFloat(item.buyPrice);
+          const newValue = newPrice * units;
+          const newPnl = newValue - (buyPrice * units);
+          
+          return {
+            ...item,
+            currentPrice: newPrice,
+            currentValue: newValue,
+            pnl: newPnl,
+            pnlPercentage: (newPnl / (buyPrice * units)) * 100
+          };
+        }
+        return item;
+      });
+      
+      setPortfolio(updatedPortfolio);
+      setHasUnsavedPrices(true);
+      toast.success('Portfolio updated with latest market data', { id: loadingToast });
+    } catch (err) {
+      toast.error('Failed to fetch market data. Check Market Service status.', { id: loadingToast });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveMarketPrices = async () => {
+    if (!portfolio || portfolio.length === 0) return;
+    
+    const loadingToast = toast.loading('Saving updated prices to database...');
+    try {
+      setLoading(true);
+      const priceUpdates = portfolio.map(item => ({
+        symbol: item.symbol,
+        currentPrice: item.currentPrice
+      }));
+      
+      await portfolioAPI.updatePrices(priceUpdates);
+      setHasUnsavedPrices(false);
+      toast.success('All prices saved successfully', { id: loadingToast });
+      fetchDashboardData(); // Sync backend state (Net Worth etc.)
+    } catch (err) {
+      toast.error('Failed to save prices to database', { id: loadingToast });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const {
     isModalOpen: isDeleteModalOpen,
     isDeleting,
@@ -192,6 +289,25 @@ const Dashboard = () => {
               <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
                 Last updated: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>
+            )}
+            <button 
+              onClick={refreshMarketPrices}
+              disabled={loading || !portfolio?.length}
+              className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium disabled:opacity-50"
+              title="Get Live Market Prices"
+            >
+              <Zap size={18} fill="currentColor" />
+              <span className="hidden md:inline">Live Prices</span>
+            </button>
+            {hasUnsavedPrices && (
+              <button 
+                onClick={saveMarketPrices}
+                disabled={loading}
+                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium animate-pulse"
+              >
+                <CheckCircle2 size={18} />
+                <span className="hidden md:inline">Save Updates</span>
+              </button>
             )}
             <button 
               onClick={fetchDashboardData}
@@ -284,6 +400,40 @@ const Dashboard = () => {
 
         {/* Portfolio Visualization */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Net Worth Performance Trend */}
+          <Card title="Performance Trend" loading={loading}>
+            {historyData.length > 1 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={historyData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#374151' : '#e5e7eb'} />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 10, fill: theme === 'dark' ? '#9ca3af' : '#4b5563' }}
+                    tickFormatter={(str) => new Date(str).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 10, fill: theme === 'dark' ? '#9ca3af' : '#4b5563' }}
+                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: theme === 'dark' ? '#1f2937' : '#fff',
+                      borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
+                      borderRadius: '8px',
+                    }}
+                    formatter={(value) => [`₹${formatCurrency(value)}`, 'Net Worth']}
+                  />
+                  <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-80 flex flex-col items-center justify-center text-center p-4">
+                <TrendingUp className="text-gray-300 mb-2" size={48} />
+                <p className="text-gray-500 dark:text-gray-400">Track your portfolio daily to see performance trends.</p>
+              </div>
+            )}
+          </Card>
+
           {/* Concentration Risk Chart */}
           <Card title="Concentration Risk" loading={loading}>
             {concentrationData.length > 0 ? (
@@ -387,9 +537,15 @@ const Dashboard = () => {
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
-                      <p className="text-lg font-bold text-primary dark:text-blue-400">
-                        ₹{formatCurrency(item.currentValue)}
-                      </p>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary dark:text-blue-400">
+                          ₹{formatCurrency(item.currentValue)}
+                        </p>
+                        <p className={`text-xs font-bold ${parseFloat(item.pnl || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {parseFloat(item.pnl || 0) >= 0 ? '+' : ''}
+                          {parseFloat(item.pnlPercentage || 0).toFixed(2)}%
+                        </p>
+                      </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => handleEdit(item)}

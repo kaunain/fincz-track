@@ -39,7 +39,6 @@
 - [x] **Goal Progress**: Backend support for tracking progress against financial targets.
 
 ## 🔴 Phase 4: Advanced Integrations
-- [ ] **WebSockets**: Real-time price updates for active market hours.
 - [ ] **Export Engine**: "Download as PDF" for monthly portfolio summaries.
 - [ ] **User Settings**: Currency preferences (INR/USD) and profile management.
 - [ ] **Market News Feed**: Integrated news component based on portfolio symbols.
@@ -48,10 +47,12 @@
 - [ ] **PWA Support**: Transform the web app into a Progressive Web App for an "App-like" experience on mobile.
 
 ### 💹 Market Data Service Enhancements
-- [ ] **Real-time API Integration**: Replace mock data with Alpha Vantage, Yahoo Finance, or Twelve Data APIs.
+- [x] **Real-time API Integration**: Integrated Alpha Vantage (Stocks) and MFAPI (Mutual Funds).
+- [ ] **API Rate Limit Handling**: Implement concurrency limits for Alpha Vantage (5 calls/min limit) to prevent 429 errors during bulk refreshes.
 - [ ] **FX & Multi-Currency**: Implement an exchange rate service to support global assets (USD/INR/EUR).
 - [ ] **Historical Price Engine**: Fetch and store End-of-Day (EOD) historical prices in a time-series database for trend analysis.
 - [ ] **Resilience Patterns**: Implement Resilience4j circuit breakers and rate limiting for external financial API calls.
+- [ ] **Async Refactoring**: Remove `.block()` calls from `MarketDataService` to ensure a fully non-blocking I/O stack.
 - [ ] **WebSocket Price Pushes**: Stream live price updates directly to the frontend during market hours.
 
 ## 🟣 Phase 5: Wealth Management & Intelligence (Advanced)
