@@ -260,17 +260,9 @@ public class PortfolioService {
     public int updateCurrentPrices(String symbol, BigDecimal currentPrice, String resolvedSymbol) {
         logger.info("Updating current prices for symbol {} to {} (Resolved: {})", symbol, currentPrice, resolvedSymbol);
         try {
-            // We fetch and update to ensure resolvedSymbol is saved. 
-            // Note: In a high-volume app, a custom @Query in the repository is more efficient.
-            List<Investment> holdings = repository.findBySymbol(symbol);
-            if (!holdings.isEmpty()) {
-                holdings.forEach(h -> {
-                    h.setCurrentPrice(currentPrice);
-                    h.setResolvedSymbol(resolvedSymbol);
-                });
-                repository.saveAll(holdings);
-            }
-            int updatedCount = holdings.size();
+            // Using bulk update for better performance and consistency
+            int updatedCount = repository.updatePriceBySymbol(symbol, currentPrice, resolvedSymbol);
+            
             if (updatedCount == 0) {
                 logger.warn("No investment holdings found for symbol: {}. No prices were updated.", symbol);
             } else {
