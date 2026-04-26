@@ -104,6 +104,7 @@ elif [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway" ] || [ "$SERVICE" = "po
         SERVICE_NAME="Portfolio Service"
         SERVICE_DIR="services/portfolio-service"
     elif [ "$SERVICE" = "market" ]; then
+        export DB_URL="jdbc:postgresql://localhost:5432/market_db"
         export SERVER_PORT=8084
         SERVICE_NAME="Market Data Service"
         SERVICE_DIR="services/market-data-service"
