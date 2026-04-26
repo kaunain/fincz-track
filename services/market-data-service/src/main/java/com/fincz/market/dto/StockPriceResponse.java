@@ -38,6 +38,7 @@ public class StockPriceResponse {
 
     private String symbol;
     private String name;
+    private String resolvedSymbol;
     private BigDecimal price;
     private BigDecimal open;
     private BigDecimal high;

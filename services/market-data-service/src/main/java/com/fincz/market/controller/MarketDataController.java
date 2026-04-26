@@ -19,6 +19,7 @@ package com.fincz.market.controller;
 import com.fincz.market.dto.StockPriceResponse;
 import com.fincz.market.dto.SyncSummary;
 import com.fincz.market.entity.StockPriceHistory;
+import com.fincz.market.entity.SyncStatus;
 import com.fincz.market.service.MarketDataService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -78,6 +79,14 @@ public class MarketDataController {
             @RequestParam(required = false, defaultValue = "false") boolean force,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         return service.syncPrices(force, authHeader);
+    }
+
+    /**
+     * Returns the current background synchronization status.
+     */
+    @GetMapping("/sync/status")
+    public Mono<SyncStatus> getSyncStatus() {
+        return service.getSyncStatus();
     }
 
     /**

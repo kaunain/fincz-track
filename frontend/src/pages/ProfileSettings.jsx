@@ -35,6 +35,16 @@ const ProfileSettings = () => {
   const [mfaLoading, setMfaLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(localStorage.getItem('last_market_sync'));
+  const [syncStatus, setSyncStatus] = useState({ inProgress: false, lastSyncStart: null, totalSymbols: 0, processedSymbols: 0 });
+
+  const fetchSyncStatus = async () => {
+    try {
+      const res = await marketAPI.getSyncStatus();
+      setSyncStatus(res.data);
+    } catch (error) {
+      console.error('Failed to fetch sync status:', error);
+    }
+  };
 
   const handleManualRefresh = async () => {
     setIsSyncing(true);
@@ -46,9 +56,10 @@ const ProfileSettings = () => {
       setLastSyncTime(now);
       localStorage.setItem('last_market_sync', now);
       toast.success(
-        `Sync completed: ${updatedSymbols} symbols updated, ${skippedSymbols} symbols skipped.`,
+        `Sync initiated: ${updatedSymbols} symbols are being updated in the background. Prices will refresh shortly.`,
         { id: loadingToast }
       );
+      fetchSyncStatus();
     } catch (error) {
       toast.error(error.userMessage || "Failed to sync prices", { id: loadingToast });
     } finally {
@@ -69,12 +80,20 @@ const ProfileSettings = () => {
         `Force sync completed: ${updatedSymbols} symbols updated.`,
         { id: loadingToast }
       );
+      fetchSyncStatus();
     } catch (error) {
       toast.error(error.userMessage || "Failed to force sync prices", { id: loadingToast });
     } finally {
       setIsSyncing(false);
     }
   };
+
+  useEffect(() => {
+    fetchSyncStatus();
+    // Poll every 10 seconds to update background sync status
+    const interval = setInterval(fetchSyncStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -371,9 +390,25 @@ const ProfileSettings = () => {
         <motion.section variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
-                <RefreshCw className="w-5 h-5" />
-                <h2>Market Data</h2>
+              <div className="flex flex-col gap-2 w-full max-w-md">
+                <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
+                  <RefreshCw className={`w-5 h-5 ${syncStatus.inProgress ? 'animate-spin text-blue-600' : ''}`} />
+                  <h2>Market Data</h2>
+                  {syncStatus.inProgress && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold rounded-full animate-pulse uppercase tracking-tighter">
+                      In Progress {syncStatus.totalSymbols > 0 ? `(${Math.round((syncStatus.processedSymbols / syncStatus.totalSymbols) * 100)}%)` : ''}
+                    </span>
+                  )}
+                </div>
+                {syncStatus.inProgress && (
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${syncStatus.totalSymbols > 0 ? Math.round((syncStatus.processedSymbols / syncStatus.totalSymbols) * 100) : 0}%` }}
+                      className="bg-blue-600 h-full rounded-full transition-all duration-500"
+                    />
+                  </div>
+                )}
               </div>
               {lastSyncTime && (
                 <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
@@ -391,7 +426,7 @@ const ProfileSettings = () => {
               <div className="flex gap-2">
                 <button 
                   onClick={handleManualRefresh}
-                  disabled={isSyncing}
+                  disabled={isSyncing || syncStatus.inProgress}
                   className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap size={16} fill="currentColor" />}
@@ -400,7 +435,7 @@ const ProfileSettings = () => {
                 {user?.role === 'admin' && (
                   <button 
                     onClick={handleForceRefresh}
-                    disabled={isSyncing}
+                    disabled={isSyncing || syncStatus.inProgress}
                     className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
                     title="Admin: Bypass 24h cooldown"
                   >

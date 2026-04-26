@@ -257,10 +257,20 @@ public class PortfolioService {
      */
     @Transactional
     @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, allEntries = true)
-    public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
-        logger.info("Updating current prices for symbol {} to {}", symbol, currentPrice);
+    public int updateCurrentPrices(String symbol, BigDecimal currentPrice, String resolvedSymbol) {
+        logger.info("Updating current prices for symbol {} to {} (Resolved: {})", symbol, currentPrice, resolvedSymbol);
         try {
-            int updatedCount = repository.updatePriceBySymbol(symbol, currentPrice);
+            // We fetch and update to ensure resolvedSymbol is saved. 
+            // Note: In a high-volume app, a custom @Query in the repository is more efficient.
+            List<Investment> holdings = repository.findBySymbol(symbol);
+            if (!holdings.isEmpty()) {
+                holdings.forEach(h -> {
+                    h.setCurrentPrice(currentPrice);
+                    h.setResolvedSymbol(resolvedSymbol);
+                });
+                repository.saveAll(holdings);
+            }
+            int updatedCount = holdings.size();
             if (updatedCount == 0) {
                 logger.warn("No investment holdings found for symbol: {}. No prices were updated.", symbol);
             } else {
@@ -347,6 +357,7 @@ public class PortfolioService {
                 investment.getType(),
                 investment.getName(),
                 investment.getSymbol(),
+                investment.getResolvedSymbol(),
                 investment.getUnits(),
                 investment.getBuyPrice(),
                 investment.getCurrentPrice(),
