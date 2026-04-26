@@ -19,8 +19,8 @@ Fincz-Track is a comprehensive microservices-based financial tracking applicatio
 |---------|------|--------|-------|
 | API Gateway | 8080 | ✅ Running | Routes all requests, handles JWT auth |
 | User Service | 8082 | ✅ Running | Consolidated: Auth, Profiles, MFA |
-| Portfolio Service | 8083 | ✅ Running | Investment tracking, net worth calculations |
-| Market Data Service | 8084 | ✅ Running | Stock price lookups (requires DB seeding) |
+| Portfolio Service | 8083 | ✅ Running | Caching enabled; advanced analytics & simulators |
+| Market Data Service | 8084 | ✅ Running | Reactive I/O; Local DB persistence & history |
 | Notification Service | 8085 | ❌ Not Running | Compilation issues (Lombok processor) |
 | PostgreSQL | 5432 | ✅ Running (Docker) | All DBs initialized and populated |
 
@@ -47,9 +47,11 @@ POST   /api/portfolio/add       - Add investment
 GET    /api/portfolio           - Get user's portfolio
 GET    /api/portfolio/type/{type} - Get portfolio by type
 GET    /api/portfolio/networth  - Calculate net worth
-GET    /api/portfolio/analytics/summary - [NEW] Get CAGR, Tax, and Concentration analytics
+GET    /api/portfolio/analytics/summary - Get CAGR, Tax, and Concentration analytics
+GET    /api/portfolio/analytics/goal-seek - [NEW] Goal-based SIP simulator
 PUT    /api/portfolio/{id}      - Update existing investment
 DELETE /api/portfolio/{id}      - Remove investment from portfolio
+PUT    /api/portfolio/prices    - Bulk update current prices
 ```
 
 #### Market Data (Public)

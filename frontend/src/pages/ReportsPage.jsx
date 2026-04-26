@@ -186,47 +186,21 @@ const ReportsPage = () => {
   };
 
   const refreshMarketPrices = async () => {
-    if (!portfolio || portfolio.length === 0) return;
-    
-    const symbols = [...new Set(portfolio.map(item => item.symbol))];
-    const loadingToast = toast.loading(`Refreshing ${symbols.length} market assets...`);
-    
+    const loadingToast = toast.loading("Syncing portfolio with live market prices...");
     try {
       setLoading(true);
-      const results = [];
+      const response = await marketAPI.syncPrices();
+      const { updatedSymbols, skippedSymbols } = response.data;
       
-      // Sequential fetch with slight delay to respect API rate limits
-      for (let i = 0; i < symbols.length; i++) {
-        const res = await marketAPI.getPrice(symbols[i]);
-        results.push(res);
-        if (symbols.length > 1) await new Promise(r => setTimeout(r, 200));
-      }
+      toast.success(
+        `Sync completed: ${updatedSymbols} symbols updated, ${skippedSymbols} symbols skipped.`,
+        { id: loadingToast }
+      );
       
-      const updatedPortfolio = portfolio.map(item => {
-        const match = results.find(r => r.data.symbol === item.symbol);
-        if (match && match.data.price) {
-          const newPrice = parseFloat(match.data.price);
-          const units = parseFloat(item.units);
-          const buyPrice = parseFloat(item.buyPrice);
-          const newValue = newPrice * units;
-          const newPnl = newValue - (buyPrice * units);
-          
-          return {
-            ...item,
-            currentPrice: newPrice,
-            currentValue: newValue,
-            pnl: newPnl,
-            pnlPercentage: (newPnl / (buyPrice * units)) * 100
-          };
-        }
-        return item;
-      });
-      
-      setPortfolio(updatedPortfolio);
-      setHasUnsavedPrices(true);
-      toast.success('Portfolio updated with latest market data', { id: loadingToast });
+      // Refresh table to show new prices from DB
+      await fetchPortfolioData();
     } catch (err) {
-      toast.error('Failed to fetch market data. Check Market Service status.', { id: loadingToast });
+      toast.error(err.userMessage || 'Failed to fetch market data', { id: loadingToast });
     } finally {
       setLoading(false);
     }

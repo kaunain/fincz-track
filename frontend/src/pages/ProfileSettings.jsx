@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, Lock, ShieldCheck, Trash2, Globe, Monitor, LogOut, X, AlertTriangle, Camera, CheckCircle, Copy, Download, RefreshCw } from 'lucide-react';
+import { User, Mail, Phone, Lock, ShieldCheck, Trash2, Globe, Monitor, LogOut, X, AlertTriangle, Camera, CheckCircle, Copy, Download, RefreshCw, Zap } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { userAPI, authAPI } from '../utils/api';
+import { userAPI, authAPI, marketAPI } from '../utils/api';
 import { useUser } from '../hooks/useUser';
 import { getInitials } from '../utils/stringUtils';
 import ChangePasswordModal from '../components/ChangePasswordModal';
@@ -33,6 +33,48 @@ const ProfileSettings = () => {
   const [mfaSetupData, setMfaSetupData] = useState(null);
   const [mfaCode, setMfaCode] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(localStorage.getItem('last_market_sync'));
+
+  const handleManualRefresh = async () => {
+    setIsSyncing(true);
+    const loadingToast = toast.loading("Syncing market prices...");
+    try {
+      const response = await marketAPI.syncPrices(false);
+      const { updatedSymbols, skippedSymbols } = response.data;
+      const now = new Date().toISOString();
+      setLastSyncTime(now);
+      localStorage.setItem('last_market_sync', now);
+      toast.success(
+        `Sync completed: ${updatedSymbols} symbols updated, ${skippedSymbols} symbols skipped.`,
+        { id: loadingToast }
+      );
+    } catch (error) {
+      toast.error(error.userMessage || "Failed to sync prices", { id: loadingToast });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleForceRefresh = async () => {
+    setIsSyncing(true);
+    const loadingToast = toast.loading("Force syncing all market prices...");
+    try {
+      const response = await marketAPI.syncPrices(true);
+      const { updatedSymbols } = response.data;
+      const now = new Date().toISOString();
+      setLastSyncTime(now);
+      localStorage.setItem('last_market_sync', now);
+      toast.success(
+        `Force sync completed: ${updatedSymbols} symbols updated.`,
+        { id: loadingToast }
+      );
+    } catch (error) {
+      toast.error(error.userMessage || "Failed to force sync prices", { id: loadingToast });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -321,6 +363,52 @@ const ProfileSettings = () => {
                 <option value="EUR">Euro (€)</option>
               </select>
               <p className="mt-2 text-xs text-gray-500">This will affect how your total net worth is calculated.</p>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Market Data Sync */}
+        <motion.section variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
+                <RefreshCw className="w-5 h-5" />
+                <h2>Market Data</h2>
+              </div>
+              {lastSyncTime && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  Last successful sync: {new Date(lastSyncTime).toLocaleString()}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900 dark:text-white">Manual Price Refresh</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Fetch latest prices for all symbols in your portfolio. (Cooldown applies)</p>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleManualRefresh}
+                  disabled={isSyncing}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap size={16} fill="currentColor" />}
+                  {isSyncing ? "Syncing..." : "Sync Prices"}
+                </button>
+                {user?.role === 'admin' && (
+                  <button 
+                    onClick={handleForceRefresh}
+                    disabled={isSyncing}
+                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                    title="Admin: Bypass 24h cooldown"
+                  >
+                    {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck size={16} />}
+                    {isSyncing ? "Force Syncing..." : "Force Refresh"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </motion.section>

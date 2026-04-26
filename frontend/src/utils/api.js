@@ -121,7 +121,8 @@ export const portfolioAPI = {
 };
 
 export const marketAPI = {
-  getPrice: (symbol) => apiClient.get(`/market/price?symbol=${symbol}`),
+  getPrice: (symbol) => apiClient.get(`/market/price/${symbol}`),
+  syncPrices: (force = false) => apiClient.post(`/market/sync${force ? '?force=true' : ''}`),
 };
 
 export default apiClient;
