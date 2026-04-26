@@ -103,12 +103,39 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created
 EOF
 )
 
+MARKET_SCHEMA=$(cat <<'EOF'
+CREATE TABLE IF NOT EXISTS stock_prices (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(50) UNIQUE NOT NULL,
+    price NUMERIC(19, 4),
+    open NUMERIC(19, 4),
+    high NUMERIC(19, 4),
+    low NUMERIC(19, 4),
+    last_updated TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_stock_prices_symbol ON stock_prices(symbol);
+
+CREATE TABLE IF NOT EXISTS stock_price_history (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(50) NOT NULL,
+    price NUMERIC(19, 4),
+    open NUMERIC(19, 4),
+    high NUMERIC(19, 4),
+    low NUMERIC(19, 4),
+    price_date DATE NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_stock_price_history_symbol ON stock_price_history(symbol);
+CREATE INDEX IF NOT EXISTS idx_stock_price_history_date ON stock_price_history(price_date);
+EOF
+)
+
 # --- Execute Initialization ---
-for db in "user_db" "portfolio_db" "notification_db"; do
+for db in "user_db" "portfolio_db" "notification_db" "market_db"; do
     case $db in
         user_db)         init_service_db "$db" "$USER_SCHEMA" ;;
         portfolio_db)    init_service_db "$db" "$PORTFOLIO_SCHEMA" ;;
         notification_db) init_service_db "$db" "$NOTIFICATION_SCHEMA" ;;
+        market_db)       init_service_db "$db" "$MARKET_SCHEMA" ;;
     esac
 done
 

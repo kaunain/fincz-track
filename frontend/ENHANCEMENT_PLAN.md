@@ -48,6 +48,143 @@
 
 ### 💹 Market Data Service Enhancements
 - [x] **Real-time API Integration**: Integrated Alpha Vantage (Stocks) and MFAPI (Mutual Funds).
+
+---
+
+## 🔧 Issue: Live Stock Price & Profit/Loss Showing 0
+
+### Root Cause Analysis
+
+After analyzing the codebase, following issues have been identified:
+
+| # | Issue | Location | Impact |
+|---|-------|----------|--------|
+| 1 | **API Key Not Configured** | `MarketDataService.java` | Alpha Vantage API key is not set, so live prices can't be fetched |
+| 2 | **Initial currentPrice = buyPrice** | `PortfolioService.java:75` | When investment is added, currentPrice defaults to buyPrice (no live update) |
+| 3 | **Scheduled Sync Not Triggered** | `MarketDataService.java:41` | `@Scheduled(cron = "0 0 1 * * *")` runs at 1 AM - may not have run yet |
+| 4 | **Cache Returns Stale Data** | `PortfolioController.java:148` | `@Cacheable` on networth returns cached (0) values even after price update |
+| 5 | **Manual Sync Available** | `MarketDataService.java:68` | `/market/sync` endpoint exists but needs to be called manually |
+
+### Data Flow Diagram
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Alpha Vantage  │────▶│  Market Data    │────▶│   Portfolio     │
+│  / MFAPI        │     │  Service        │     │   Service       │
+│  (External API) │     │  (Price Fetch)  │     │  (Price Update) │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                                                        │
+                                                        ▼
+                                               ┌─────────────────┐
+                                               │  Investment DB  │
+                                               │ (current_price) │
+                                               └─────────────────┘
+                                                        │
+                                                        ▼
+                                               ┌─────────────────┐
+                                               │  Net Worth      │
+                                               │  Calculation    │
+                                               │ (P&L = 0 initially)
+                                               └─────────────────┘
+```
+
+### Fix Plan
+
+#### ✅ Step 1: Configure Alpha Vantage API Key
+```bash
+# Add to .env file
+MARKET_API_KEY=your_alpha_vantage_api_key
+
+# Get free API key from: https://www.alphavantage.co/support/#api-key
+```
+
+#### ✅ Step 2: Trigger Manual Price Sync
+```http
+POST /api/market/sync?force=true
+Authorization: Bearer <token>
+```
+
+#### ✅ Step 3: Clear Cache After Price Update
+The cache eviction is already configured but needs verification:
+- `@CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, allEntries = true)` in `PortfolioService.java:271`
+
+#### ✅ Step 4: Verify Database Values
+Check if `current_price` column in `investments` table has been updated:
+```sql
+SELECT symbol, buy_price, current_price, units, 
+       (current_price - buy_price) * units as pnl 
+FROM investments;
+```
+
+### Code Changes Required
+
+#### 1. Add API Key Validation
+```java
+// MarketDataService.java - Already implemented but needs proper env setup
+if (apiKey == null || apiKey.isBlank() || "your_market_api_key".equals(apiKey)) {
+    log.error("CRITICAL: Alpha Vantage API Key is NOT configured correctly...");
+}
+```
+
+#### 2. Ensure Cache Eviction Works
+```java
+// PortfolioService.java:271 - Already configured
+@Transactional
+@CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, allEntries = true)
+public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
+    // This should work - verify it's being called
+}
+```
+
+#### 3. Add Manual Sync Trigger from Frontend (Optional Enhancement)
+- Add "Refresh Prices" button on Dashboard
+- Call `/api/market/sync?force=true` when clicked
+
+### Testing Steps
+
+1. **Verify API Key**:
+   ```bash
+   curl "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=TCS&apikey=YOUR_KEY"
+   ```
+
+2. **Check Current Prices in DB**:
+   ```bash
+   # Connect to PostgreSQL
+   docker exec -it fincz-track-postgres-1 psql -U postgres -d fincz_portfolio
+   SELECT symbol, buy_price, current_price FROM investments LIMIT 5;
+   ```
+
+3. **Trigger Manual Sync**:
+   ```bash
+   curl -X POST "http://localhost:8084/api/market/sync?force=true" \
+        -H "Authorization: Bearer <token>"
+   ```
+
+4. **Check Net Worth Again**:
+   ```bash
+   curl -H "X-User-Email: user@example.com" \
+        "http://localhost:8084/api/portfolio/networth"
+   ```
+
+### Expected Result After Fix
+
+| Field | Before | After |
+|-------|--------|-------|
+| currentPrice | ₹150 (same as buyPrice) | ₹165 (live from API) |
+| currentValue | ₹15,000 | ₹16,500 |
+| P&L | ₹0 | ₹1,500 (+10%) |
+| Net Worth | ₹1,50,000 | ₹1,65,000 |
+
+---
+
+### 📋 Additional Enhancements Pending
+
+- [ ] **Export Engine**: "Download as PDF" for monthly portfolio summaries.
+- [ ] **User Settings**: Currency preferences (INR/USD) and profile management.
+- [ ] **Market News Feed**: Integrated news component based on portfolio symbols.
+- [ ] **Watchlist**: Current portfolio ke bahar stocks track karne ke liye custom list.
+- [ ] **Broker Auto-Sync**: Integration with external APIs or email scraping to auto-fetch transactions.
+- [ ] **PWA Support**: Transform the web app into a Progressive Web App for an "App-like" experience on mobile.
 - [ ] **API Rate Limit Handling**: Implement concurrency limits for Alpha Vantage (5 calls/min limit) to prevent 429 errors during bulk refreshes.
 - [ ] **FX & Multi-Currency**: Implement an exchange rate service to support global assets (USD/INR/EUR).
 - [ ] **Historical Price Engine**: Fetch and store End-of-Day (EOD) historical prices in a time-series database for trend analysis.
