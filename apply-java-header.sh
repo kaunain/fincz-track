@@ -4,7 +4,7 @@
 # This script applies the template from java.header to all .java files.
 
 PROJECT_ROOT="/home/ahmad/JIDE/fincz-track"
-HEADER_FILE="$PROJECT_ROOT/services/auth-service/java.header"
+HEADER_FILE="$PROJECT_ROOT/services/user-service/java.header"
 
 if [ ! -f "$HEADER_FILE" ]; then
     echo "Error: Header template not found at $HEADER_FILE"
