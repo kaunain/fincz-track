@@ -125,8 +125,12 @@ public class MarketDataService {
                             .concatMap(symbol -> Mono.delay(Duration.ofSeconds(13))
                                     .then(processSymbolUpdate(symbol, force, token))
                                     .onErrorResume(e -> {
-                                        log.error("Skipping sync for symbol {}: {}. Ensure Indian stocks have .NS suffix.", symbol, e.getMessage());
-                                        return Mono.empty();
+                                        if (e.getMessage() != null && e.getMessage().contains("25 requests per day")) {
+                                            log.error("CRITICAL: Alpha Vantage daily limit (25) reached. Terminating sync process.");
+                                            return Mono.error(e); // Stop the whole Flux
+                                        }
+                                        log.error("Skipping sync for symbol {}: {}.", symbol, e.getMessage());
+                                        return Mono.empty(); // Continue with next symbol
                                     })
                                     .then(Mono.fromRunnable(() -> {
                                         syncStatusRepository.findById("GLOBAL_SYNC").ifPresent(s -> {

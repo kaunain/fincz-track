@@ -33,6 +33,9 @@ public class Investment {
     @Column(nullable = false)
     private String symbol; // e.g., HDFCBANK.NS
 
+    @Column(name = "resolved_symbol")
+    private String resolvedSymbol;
+
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal units;
 

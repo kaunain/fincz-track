@@ -51,8 +51,11 @@ public interface InvestmentRepository extends JpaRepository<Investment, Long> {
      * @return number of records updated.
      */
     @Modifying
-    @Query("UPDATE Investment i SET i.currentPrice = :price WHERE i.symbol = :symbol")
-    int updatePriceBySymbol(@Param("symbol") String symbol, @Param("price") BigDecimal price);
+    @Query("UPDATE Investment i SET i.currentPrice = :price, i.resolvedSymbol = :resolvedSymbol WHERE i.symbol = :symbol")
+    int updatePriceBySymbol(
+            @Param("symbol") String symbol, 
+            @Param("price") BigDecimal price, 
+            @Param("resolvedSymbol") String resolvedSymbol);
 
     @Query("SELECT DISTINCT i.symbol FROM Investment i")
     List<String> findDistinctSymbols();
