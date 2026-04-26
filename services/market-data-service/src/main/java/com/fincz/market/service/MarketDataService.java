@@ -9,20 +9,23 @@ import com.fincz.market.repository.StockPriceRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.http.HttpStatus;
 import com.fincz.market.dto.StockPriceResponse;
+import com.fincz.market.dto.SyncSummary;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-import reactor.util.retry.Retry;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -34,12 +37,14 @@ public class MarketDataService {
     private final String apiKey;
     private final StockPriceRepository stockPriceRepository;
     private final StockPriceHistoryRepository stockPriceHistoryRepository;
+    private final int refreshIntervalHours;
 
     public MarketDataService(WebClient.Builder webClientBuilder,
                              @Value("${market.api.stock-base-url:https://www.alphavantage.co}") String stockBaseUrl,
                              @Value("${market.api.mf-base-url:https://api.mfapi.in}") String mfBaseUrl,
                              @Value("${market.api.key:${MARKET_API_KEY:}}") String apiKey,
                              @Value("${app.services.portfolio-url:http://localhost:8083}") String portfolioUrl,
+                             @Value("${market.api.refresh-interval-hours:24}") int refreshIntervalHours,
                              StockPriceRepository stockPriceRepository,
                              StockPriceHistoryRepository stockPriceHistoryRepository) {
         this.stockClient = webClientBuilder.baseUrl(stockBaseUrl).build();
@@ -48,26 +53,74 @@ public class MarketDataService {
         this.apiKey = apiKey;
         this.stockPriceRepository = stockPriceRepository;
         this.stockPriceHistoryRepository = stockPriceHistoryRepository;
+        this.refreshIntervalHours = refreshIntervalHours;
+
+        if (apiKey == null || apiKey.isBlank() || "your_market_api_key".equals(apiKey)) {
+            log.error("CRITICAL: Alpha Vantage API Key is NOT configured correctly. Stock price updates will fail.");
+            log.error("Ensure MARKET_API_KEY is set in your .env file and exported to the service environment.");
+        } else {
+            log.info("Market Data Service initialized with API Key (length: {})", apiKey.length());
+        }
     }
 
     /**
-     * Scheduled task to refresh prices once per day.
-     * Fetches symbols from the portfolio service, updates current prices in the DB,
-     * and keeps local market service calls from re-querying the external API.
+     * Manually triggers price synchronization for all tracked symbols.
+     * Includes a cooldown check to prevent multiple API calls within the configured interval.
      */
-    @Scheduled(cron = "${market.schedule.refresh-cron:0 0 1 * * *}")
-    public void refreshMarketPrices() {
-        log.info("Starting daily market price refresh...");
+    public Mono<SyncSummary> syncPrices(boolean force) {
+        return fetchTrackedSymbols()
+                .flatMap(symbols -> {
+                    if (symbols.isEmpty()) {
+                        return Mono.<ProcessingMetadata>error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "No symbols found in portfolio to sync."));
+                    }
 
-        fetchTrackedSymbols()
-                .flatMapMany(Flux::fromIterable)
-                .concatMap(symbol -> processSymbolUpdate(symbol).delayElement(Duration.ofSeconds(12))) // Rate limit: 5 calls/min (12s gap)
-                .subscribe(
-                        v -> log.debug("Updated symbol successfully"),
-                        error -> log.error("Error in refresh cycle: {}", error.getMessage()),
-                        () -> log.info("Market price refresh cycle completed.")
-                );
+                    return Mono.fromCallable(() -> {
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime threshold = now.minusHours(refreshIntervalHours);
+
+                        List<StockPrice> currentPrices = symbols.stream()
+                                .map(s -> stockPriceRepository.findBySymbol(s).orElse(null))
+                                .filter(p -> p != null)
+                                .collect(Collectors.toList());
+
+                        List<String> symbolsToUpdate = force ? symbols : symbols.stream()
+                                .filter(s -> {
+                                    var p = currentPrices.stream().filter(cp -> cp.getSymbol().equals(s)).findFirst();
+                                    return p.isEmpty() || p.get().getLastUpdated() == null || p.get().getLastUpdated().isBefore(threshold);
+                                }).collect(Collectors.toList());
+
+                        int total = symbols.size();
+                        int skipped = total - symbolsToUpdate.size();
+
+                        if (!force && symbolsToUpdate.isEmpty()) {
+                            LocalDateTime earliestUpdate = currentPrices.stream()
+                                    .map(StockPrice::getLastUpdated)
+                                    .filter(t -> t != null)
+                                    .min(LocalDateTime::compareTo)
+                                    .orElse(now);
+
+                            Duration remaining = Duration.between(now, earliestUpdate.plusHours(refreshIntervalHours));
+                            String waitTime = String.format("%dh %dm", remaining.toHours(), remaining.toMinutesPart());
+
+                            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, 
+                                "Daily sync limit reached. You can sync again in " + waitTime + ".");
+                        }
+                        return new ProcessingMetadata(symbolsToUpdate, total, skipped);
+                    }).subscribeOn(Schedulers.boundedElastic());
+                })
+                .flatMap(meta -> Flux.fromIterable(meta.staleSymbols)
+                        .doOnSubscribe(s -> log.info("Initiating market data sync for {} symbols (force={})...", meta.staleSymbols.size(), force))
+                        .concatMap(symbol -> processSymbolUpdate(symbol, force)
+                                .thenReturn(symbol)
+                                .delayElement(Duration.ofSeconds(15)))
+                        .collectList()
+                        .map(updated -> new SyncSummary(meta.total, updated.size(), meta.skipped, updated))
+                )
+                .doOnSuccess(summary -> log.info("Market data sync completed. Summary: {}", summary))
+                .doOnError(error -> log.error("Error in sync cycle: {}", error.getMessage()));
     }
+
+    private record ProcessingMetadata(List<String> staleSymbols, int total, int skipped) {}
 
     private Mono<List<String>> fetchTrackedSymbols() {
         return portfolioClient.get()
@@ -76,20 +129,38 @@ public class MarketDataService {
                 .bodyToMono(new ParameterizedTypeReference<List<String>>() {});
     }
 
-    private Mono<Void> processSymbolUpdate(String symbol) {
-        return (isMutualFundSymbol(symbol) ? fetchMutualFundFullData(symbol) : fetchFullStockData(symbol))
-                .flatMap(response -> Mono.fromRunnable(() -> {
-                            saveToLocalDb(response);
-                            saveToHistory(response);
-                        })
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .then(updatePortfolioService(symbol, response.getPrice())))
+    private Mono<Void> processSymbolUpdate(String symbol, boolean force) {
+        return Mono.fromCallable(() -> stockPriceRepository.findBySymbol(symbol))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(existingPrice -> {
+                    if (!force && existingPrice.isPresent()) {
+                        LocalDateTime lastUpdate = existingPrice.get().getLastUpdated();
+                        // Property based cooldown check
+                        if (lastUpdate != null && lastUpdate.isAfter(LocalDateTime.now().minusHours(refreshIntervalHours))) {
+                            log.info("Skipping API fetch for {} - last updated at {} (Interval: {}h)", 
+                                symbol, lastUpdate, refreshIntervalHours);
+                            return Mono.<Void>empty();
+                        }
+                    }
+                    return fetchLiveAndPersist(symbol)
+                            .flatMap(response -> updatePortfolioService(symbol, response.getPrice()));
+                })
                 .onErrorResume(e -> {
                     log.error("Failed to update {}: {}", symbol, e.getMessage());
-                    return Mono.empty();
+                    return Mono.<Void>empty();
                 });
     }
 
+    private Mono<StockPriceResponse> fetchLiveAndPersist(String symbol) {
+        return (isMutualFundSymbol(symbol) ? fetchMutualFundFullData(symbol) : fetchFullStockData(symbol))
+                .flatMap(response -> Mono.fromCallable(() -> {
+                    saveToLocalDb(response);
+                    saveToHistory(response);
+                    return response;
+                }).subscribeOn(Schedulers.boundedElastic()));
+    }
+
+    @Transactional
     private void saveToLocalDb(StockPriceResponse response) {
         StockPrice entity = stockPriceRepository.findBySymbol(response.getSymbol())
                 .orElse(new StockPrice());
@@ -104,6 +175,7 @@ public class MarketDataService {
         stockPriceRepository.save(entity);
     }
 
+    @Transactional
     private void saveToHistory(StockPriceResponse response) {
         LocalDate today = LocalDate.now();
         // एक ही दिन में एक प्रतीक के लिए दो प्रविष्टियों से बचें
@@ -131,7 +203,19 @@ public class MarketDataService {
                 .retrieve()
                 .bodyToMono(JsonNode.class)
                 .map(node -> {
+                    if (node.has("Error Message")) {
+                        log.error("Alpha Vantage API Error for {}: {}", symbol, node.path("Error Message").asText());
+                        throw new RuntimeException("Invalid API Key or API Configuration Error");
+                    }
+                    if (node.has("Note") || node.has("Information")) {
+                        log.warn("Alpha Vantage API limitation for {}: {}", symbol, node.toString());
+                        throw new RuntimeException("API Rate Limit or Information encountered");
+                    }
                     JsonNode q = node.path("Global Quote");
+                    if (q.isMissingNode() || q.isEmpty()) {
+                        log.warn("No data found for symbol: {}", symbol);
+                        throw new RuntimeException("Symbol not found");
+                    }
                     return new StockPriceResponse(
                             symbol,
                             symbol,
@@ -200,14 +284,14 @@ public class MarketDataService {
                         return Mono.just(new StockPriceResponse(sp.getSymbol(), sp.getSymbol(), sp.getPrice(), sp.getOpen(), sp.getHigh(), sp.getLow(), sp.getLastUpdated()));
                     }
 
-                    // अगर DB में नहीं है तो Portfolio Service और external API का सहारा लें
+                    // अगर DB में नहीं है तो पहले Portfolio Service check करें फिर Live fetch करके save करें
                     return portfolioClient.get()
                             .uri("/portfolio/internal/prices/{symbol}", symbol)
                             .retrieve()
                             .onStatus(status -> !status.is2xxSuccessful(), response -> Mono.empty())
                             .bodyToMono(BigDecimal.class)
                             .map(price -> new StockPriceResponse(symbol, symbol, price, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, LocalDateTime.now()))
-                            .switchIfEmpty(Mono.defer(() -> fetchFullStockData(symbol)))
+                            .switchIfEmpty(Mono.defer(() -> fetchLiveAndPersist(symbol)))
                             .onErrorResume(e -> {
                                 log.error("Error fetching live price for {}: {}", symbol, e.getMessage());
                                 return Mono.just(new StockPriceResponse(symbol, symbol, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, LocalDateTime.now()));

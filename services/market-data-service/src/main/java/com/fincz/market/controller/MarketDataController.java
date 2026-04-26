@@ -17,6 +17,7 @@
 package com.fincz.market.controller;
 
 import com.fincz.market.dto.StockPriceResponse;
+import com.fincz.market.dto.SyncSummary;
 import com.fincz.market.entity.StockPriceHistory;
 import com.fincz.market.service.MarketDataService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
@@ -62,6 +65,14 @@ public class MarketDataController {
     @GetMapping("/history/{symbol}")
     public Flux<StockPriceHistory> getStockHistory(@PathVariable String symbol) {
         return service.getPriceHistory(symbol);
+    }
+
+    /**
+     * Manually triggers a sync for all symbols tracked in the portfolio.
+     */
+    @PostMapping("/sync")
+    public Mono<SyncSummary> syncAllPrices(@RequestParam(required = false, defaultValue = "false") boolean force) {
+        return service.syncPrices(force);
     }
 
     /**

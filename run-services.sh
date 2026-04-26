@@ -129,6 +129,7 @@ elif [ "$SERVICE" = "user" ] || [ "$SERVICE" = "gateway" ] || [ "$SERVICE" = "po
     cd "$SERVICE_DIR" || exit
     export JWT_SECRET
     export JWT_EXPIRATION
+    export MARKET_API_KEY
     mvn spring-boot:run -DskipTests
 
 elif [ "$SERVICE" = "all" ]; then
@@ -143,6 +144,7 @@ elif [ "$SERVICE" = "all" ]; then
     export JWT_EXPIRATION
     export DB_USER
     export DB_PASS
+    export MARKET_API_KEY
 
     (cd services/user-service && export DB_URL="jdbc:postgresql://localhost:5432/user_db" && export SERVER_PORT=8082 && mvn spring-boot:run -DskipTests) &
     (cd services/api-gateway && export SERVER_PORT=8080 && mvn spring-boot:run -DskipTests) &
