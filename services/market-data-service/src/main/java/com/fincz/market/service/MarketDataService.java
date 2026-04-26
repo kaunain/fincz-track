@@ -1,6 +1,8 @@
 package com.fincz.market.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fincz.market.entity.StockPrice;
 import com.fincz.market.entity.StockPriceHistory;
 import com.fincz.market.repository.StockPriceHistoryRepository;
@@ -34,6 +36,7 @@ public class MarketDataService {
     private final WebClient stockClient;
     private final WebClient mfClient;
     private final WebClient portfolioClient;
+    private final ObjectMapper objectMapper;
     private final String apiKey;
     private final StockPriceRepository stockPriceRepository;
     private final StockPriceHistoryRepository stockPriceHistoryRepository;
@@ -45,11 +48,13 @@ public class MarketDataService {
                              @Value("${market.api.key:${MARKET_API_KEY:}}") String apiKey,
                              @Value("${app.services.portfolio-url:http://localhost:8083}") String portfolioUrl,
                              @Value("${market.api.refresh-interval-hours:24}") int refreshIntervalHours,
+                             ObjectMapper objectMapper,
                              StockPriceRepository stockPriceRepository,
                              StockPriceHistoryRepository stockPriceHistoryRepository) {
         this.stockClient = webClientBuilder.baseUrl(stockBaseUrl).build();
         this.mfClient = webClientBuilder.baseUrl(mfBaseUrl).build();
         this.portfolioClient = webClientBuilder.baseUrl(portfolioUrl).build();
+        this.objectMapper = objectMapper;
         this.apiKey = apiKey;
         this.stockPriceRepository = stockPriceRepository;
         this.stockPriceHistoryRepository = stockPriceHistoryRepository;
@@ -67,8 +72,8 @@ public class MarketDataService {
      * Manually triggers price synchronization for all tracked symbols.
      * Includes a cooldown check to prevent multiple API calls within the configured interval.
      */
-    public Mono<SyncSummary> syncPrices(boolean force) {
-        return fetchTrackedSymbols()
+    public Mono<SyncSummary> syncPrices(boolean force, String token) {
+        return fetchTrackedSymbols(token)
                 .flatMap(symbols -> {
                     if (symbols.isEmpty()) {
                         return Mono.<ProcessingMetadata>error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "No symbols found in portfolio to sync."));
@@ -110,7 +115,7 @@ public class MarketDataService {
                 })
                 .flatMap(meta -> Flux.fromIterable(meta.staleSymbols)
                         .doOnSubscribe(s -> log.info("Initiating market data sync for {} symbols (force={})...", meta.staleSymbols.size(), force))
-                        .concatMap(symbol -> processSymbolUpdate(symbol, force)
+                        .concatMap(symbol -> processSymbolUpdate(symbol, force, token)
                                 .thenReturn(symbol)
                                 .delayElement(Duration.ofSeconds(15)))
                         .collectList()
@@ -122,14 +127,19 @@ public class MarketDataService {
 
     private record ProcessingMetadata(List<String> staleSymbols, int total, int skipped) {}
 
-    private Mono<List<String>> fetchTrackedSymbols() {
+    private Mono<List<String>> fetchTrackedSymbols(String token) {
         return portfolioClient.get()
                 .uri("/portfolio/internal/symbols")
+                .headers(h -> {
+                    if (token != null) {
+                        h.set("Authorization", token);
+                    }
+                })
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<List<String>>() {});
     }
 
-    private Mono<Void> processSymbolUpdate(String symbol, boolean force) {
+    private Mono<Void> processSymbolUpdate(String symbol, boolean force, String token) {
         return Mono.fromCallable(() -> stockPriceRepository.findBySymbol(symbol))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMap(existingPrice -> {
@@ -143,7 +153,7 @@ public class MarketDataService {
                         }
                     }
                     return fetchLiveAndPersist(symbol)
-                            .flatMap(response -> updatePortfolioService(symbol, response.getPrice()));
+                            .flatMap(response -> updatePortfolioService(symbol, response.getPrice(), token));
                 })
                 .onErrorResume(e -> {
                     log.error("Failed to update {}: {}", symbol, e.getMessage());
@@ -201,19 +211,27 @@ public class MarketDataService {
                         .queryParam("apikey", apiKey)
                         .build())
                 .retrieve()
-                .bodyToMono(JsonNode.class)
-                .map(node -> {
+                .bodyToMono(String.class)
+                .map(json -> {
+                    JsonNode node;
+                    try {
+                        node = objectMapper.readTree(json);
+                    } catch (JsonProcessingException e) {
+                        log.error("Failed to parse Alpha Vantage response for {}. Raw Body: {}", symbol, json);
+                        throw new RuntimeException("Failed to parse Alpha Vantage response", e);
+                    }
+
                     if (node.has("Error Message")) {
-                        log.error("Alpha Vantage API Error for {}: {}", symbol, node.path("Error Message").asText());
+                        log.error("Alpha Vantage API Error for {}: {}. Raw Body: {}", symbol, node.path("Error Message").asText(), json);
                         throw new RuntimeException("Invalid API Key or API Configuration Error");
                     }
                     if (node.has("Note") || node.has("Information")) {
-                        log.warn("Alpha Vantage API limitation for {}: {}", symbol, node.toString());
+                        log.warn("Alpha Vantage API limitation encountered for {}. Raw Body: {}", symbol, json);
                         throw new RuntimeException("API Rate Limit or Information encountered");
                     }
                     JsonNode q = node.path("Global Quote");
                     if (q.isMissingNode() || q.isEmpty()) {
-                        log.warn("No data found for symbol: {}", symbol);
+                        log.warn("No data found for symbol: {}. Raw Body: {}", symbol, json);
                         throw new RuntimeException("Symbol not found");
                     }
                     return new StockPriceResponse(
@@ -233,14 +251,24 @@ public class MarketDataService {
         return mfClient.get()
                 .uri(uri -> uri.path("/mf/{schemeCode}").build(schemeCode))
                 .retrieve()
-                .bodyToMono(JsonNode.class)
-                .map(node -> {
+                .bodyToMono(String.class)
+                .map(json -> {
+                    JsonNode node;
+                    try {
+                        node = objectMapper.readTree(json);
+                    } catch (JsonProcessingException e) {
+                        log.error("Failed to parse Mutual Fund API response for {}. Raw Body: {}", symbol, json);
+                        throw new RuntimeException("Failed to parse Mutual Fund API response", e);
+                    }
+
                     JsonNode data = node.path("data");
                     if (!data.isArray() || data.isEmpty()) {
+                        log.error("Invalid Mutual Fund API response for {}. Raw Body: {}", symbol, json);
                         throw new IllegalStateException("Unable to parse mutual fund NAV for " + symbol);
                     }
                     String nav = data.get(0).path("nav").asText(null);
                     if (nav == null || nav.isBlank()) {
+                        log.error("Missing NAV field in Mutual Fund response for {}. Raw Body: {}", symbol, json);
                         throw new IllegalStateException("Missing NAV value for " + symbol);
                     }
                     BigDecimal price = new BigDecimal(nav.trim());
@@ -265,15 +293,20 @@ public class MarketDataService {
         return symbol.replaceFirst("(?i)^MF[-:]", "");
     }
 
-    private Mono<Void> updatePortfolioService(String symbol, BigDecimal price) {
+    private Mono<Void> updatePortfolioService(String symbol, BigDecimal price, String token) {
         return portfolioClient.put()
                 .uri("/portfolio/internal/prices/{symbol}?price={price}", symbol, price)
+                .headers(h -> {
+                    if (token != null) {
+                        h.set("Authorization", token);
+                    }
+                })
                 .retrieve()
                 .toBodilessEntity()
                 .then();
     }
 
-    public Mono<StockPriceResponse> getStockPrice(String symbol) {
+    public Mono<StockPriceResponse> getStockPrice(String symbol, String token) {
         log.info("Fetching cached price for symbol: {}", symbol);
 
         return Mono.fromCallable(() -> stockPriceRepository.findBySymbol(symbol))
@@ -287,6 +320,11 @@ public class MarketDataService {
                     // अगर DB में नहीं है तो पहले Portfolio Service check करें फिर Live fetch करके save करें
                     return portfolioClient.get()
                             .uri("/portfolio/internal/prices/{symbol}", symbol)
+                            .headers(h -> {
+                                if (token != null) {
+                                    h.set("Authorization", token);
+                                }
+                            })
                             .retrieve()
                             .onStatus(status -> !status.is2xxSuccessful(), response -> Mono.empty())
                             .bodyToMono(BigDecimal.class)
