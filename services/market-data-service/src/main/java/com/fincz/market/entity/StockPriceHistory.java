@@ -22,6 +22,9 @@ public class StockPriceHistory {
     @Column(nullable = false)
     private String symbol;
 
+    @Column(name = "resolved_symbol")
+    private String resolvedSymbol;
+
     private BigDecimal price;
     private BigDecimal open;
     private BigDecimal high;

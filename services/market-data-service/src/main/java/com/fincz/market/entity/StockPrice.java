@@ -20,6 +20,9 @@ public class StockPrice {
     @Column(unique = true, nullable = false)
     private String symbol;
 
+    @Column(name = "resolved_symbol")
+    private String resolvedSymbol;
+
     private BigDecimal price;
     private BigDecimal open;
     private BigDecimal high;

@@ -122,7 +122,10 @@ export const portfolioAPI = {
 
 export const marketAPI = {
   getPrice: (symbol) => apiClient.get(`/market/price/${symbol}`),
-  syncPrices: (force = false) => apiClient.post(`/market/sync${force ? '?force=true' : ''}`),
+  syncPrices: (force = false) => apiClient.post(`/market/sync${force ? '?force=true' : ''}`, null, {
+    timeout: 300000 // Increase timeout to 5 minutes for long-running sync
+  }),
+  getSyncStatus: () => apiClient.get('/market/sync/status'),
 };
 
 export default apiClient;

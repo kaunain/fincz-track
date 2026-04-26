@@ -183,9 +183,10 @@ public class PortfolioController {
     @CacheEvict(value = {"netWorth", "analyticsSummary", "portfolioList", "portfolioByType"}, allEntries = true)
     public ResponseEntity<Void> updatePrices(
             @PathVariable String symbol,
-            @RequestParam BigDecimal price) {
-        log.debug("Internal price update request for symbol: {}, price: {}", symbol, price);
-        int updatedCount = service.updateCurrentPrices(symbol, price);
+            @RequestParam BigDecimal price,
+            @RequestParam(required = false) String resolvedSymbol) {
+        log.debug("Internal price update request for symbol: {}, price: {}, resolvedSymbol: {}", symbol, price, resolvedSymbol);
+        int updatedCount = service.updateCurrentPrices(symbol, price, resolvedSymbol);
         if (updatedCount == 0) {
             return ResponseEntity.noContent().build();
         }

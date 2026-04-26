@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fincz.market.entity.StockPrice;
 import com.fincz.market.entity.StockPriceHistory;
+import com.fincz.market.entity.SyncStatus;
 import com.fincz.market.repository.StockPriceHistoryRepository;
 import com.fincz.market.repository.StockPriceRepository;
+import com.fincz.market.repository.SyncStatusRepository;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +42,7 @@ public class MarketDataService {
     private final String apiKey;
     private final StockPriceRepository stockPriceRepository;
     private final StockPriceHistoryRepository stockPriceHistoryRepository;
+    private final SyncStatusRepository syncStatusRepository;
     private final int refreshIntervalHours;
 
     public MarketDataService(WebClient.Builder webClientBuilder,
@@ -50,7 +53,8 @@ public class MarketDataService {
                              @Value("${market.api.refresh-interval-hours:24}") int refreshIntervalHours,
                              ObjectMapper objectMapper,
                              StockPriceRepository stockPriceRepository,
-                             StockPriceHistoryRepository stockPriceHistoryRepository) {
+                             StockPriceHistoryRepository stockPriceHistoryRepository,
+                             SyncStatusRepository syncStatusRepository) {
         this.stockClient = webClientBuilder.baseUrl(stockBaseUrl).build();
         this.mfClient = webClientBuilder.baseUrl(mfBaseUrl).build();
         this.portfolioClient = webClientBuilder.baseUrl(portfolioUrl).build();
@@ -58,6 +62,7 @@ public class MarketDataService {
         this.apiKey = apiKey;
         this.stockPriceRepository = stockPriceRepository;
         this.stockPriceHistoryRepository = stockPriceHistoryRepository;
+        this.syncStatusRepository = syncStatusRepository;
         this.refreshIntervalHours = refreshIntervalHours;
 
         if (apiKey == null || apiKey.isBlank() || "your_market_api_key".equals(apiKey)) {
@@ -113,16 +118,45 @@ public class MarketDataService {
                         return new ProcessingMetadata(symbolsToUpdate, total, skipped);
                     }).subscribeOn(Schedulers.boundedElastic());
                 })
-                .flatMap(meta -> Flux.fromIterable(meta.staleSymbols)
-                        .doOnSubscribe(s -> log.info("Initiating market data sync for {} symbols (force={})...", meta.staleSymbols.size(), force))
-                        .concatMap(symbol -> processSymbolUpdate(symbol, force, token)
-                                .thenReturn(symbol)
-                                .delayElement(Duration.ofSeconds(15)))
-                        .collectList()
-                        .map(updated -> new SyncSummary(meta.total, updated.size(), meta.skipped, updated))
-                )
-                .doOnSuccess(summary -> log.info("Market data sync completed. Summary: {}", summary))
-                .doOnError(error -> log.error("Error in sync cycle: {}", error.getMessage()));
+                .map(meta -> {
+                    // Fire-and-forget: Start the background process without blocking the HTTP response
+                    Flux.fromIterable(meta.staleSymbols)
+                            .doOnSubscribe(s -> log.info("Background sync started for {} symbols...", meta.staleSymbols.size()))
+                            .concatMap(symbol -> Mono.delay(Duration.ofSeconds(13))
+                                    .then(processSymbolUpdate(symbol, force, token))
+                                    .onErrorResume(e -> {
+                                        log.error("Skipping sync for symbol {}: {}. Ensure Indian stocks have .NS suffix.", symbol, e.getMessage());
+                                        return Mono.empty();
+                                    })
+                                    .then(Mono.fromRunnable(() -> {
+                                        syncStatusRepository.findById("GLOBAL_SYNC").ifPresent(s -> {
+                                            s.setProcessedSymbols(s.getProcessedSymbols() + 1);
+                                            syncStatusRepository.save(s);
+                                        });
+                                    }).subscribeOn(Schedulers.boundedElastic()))
+                                    .thenReturn(symbol))
+                            .doFinally(signal -> {
+                                log.info("Background market data sync finished with signal: {}", signal);
+                                // Release lock
+                                syncStatusRepository.findById("GLOBAL_SYNC").ifPresent(s -> {
+                                    s.setInProgress(false);
+                                    syncStatusRepository.save(s);
+                                });
+                            })
+                            .subscribe(); // Detach from the main response pipeline
+
+                    // Return immediate summary to avoid frontend timeout
+                    return new SyncSummary(meta.total, meta.staleSymbols.size(), meta.skipped, meta.staleSymbols);
+                });
+    }
+
+    /**
+     * Fetches the current global synchronization status.
+     */
+    public Mono<SyncStatus> getSyncStatus() {
+        return Mono.fromCallable(() -> syncStatusRepository.findById("GLOBAL_SYNC")
+                .orElse(SyncStatus.builder().id("GLOBAL_SYNC").inProgress(false).build()))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     private record ProcessingMetadata(List<String> staleSymbols, int total, int skipped) {}
@@ -153,7 +187,7 @@ public class MarketDataService {
                         }
                     }
                     return fetchLiveAndPersist(symbol)
-                            .flatMap(response -> updatePortfolioService(symbol, response.getPrice(), token));
+                            .flatMap(response -> updatePortfolioService(symbol, response.getPrice(), response.getResolvedSymbol(), token));
                 })
                 .onErrorResume(e -> {
                     log.error("Failed to update {}: {}", symbol, e.getMessage());
@@ -176,6 +210,7 @@ public class MarketDataService {
                 .orElse(new StockPrice());
         
         entity.setSymbol(response.getSymbol());
+        entity.setResolvedSymbol(response.getResolvedSymbol());
         entity.setPrice(response.getPrice());
         entity.setOpen(response.getOpen());
         entity.setHigh(response.getHigh());
@@ -192,6 +227,7 @@ public class MarketDataService {
         if (stockPriceHistoryRepository.findBySymbolAndPriceDate(response.getSymbol(), today).isEmpty()) {
             StockPriceHistory history = StockPriceHistory.builder()
                     .symbol(response.getSymbol())
+                    .resolvedSymbol(response.getResolvedSymbol())
                     .price(response.getPrice())
                     .open(response.getOpen())
                     .high(response.getHigh())
@@ -204,6 +240,24 @@ public class MarketDataService {
     }
 
     private Mono<StockPriceResponse> fetchFullStockData(String symbol) {
+        return fetchFullStockDataFromApi(symbol)
+                .onErrorResume(e -> {
+                    // Resilience Fallback: If fetch fails and no suffix is present, try appending .NS (NSE)
+                    if (!symbol.contains(".")) {
+                        log.info("No data for '{}', attempting fallback with '.NS' suffix...", symbol);
+                        return fetchFullStockDataFromApi(symbol + ".NS")
+                                .map(response -> {
+                                    // Revert to original symbol so it matches DB and Portfolio records
+                                    response.setSymbol(symbol);
+                                    response.setName(symbol);
+                                    return response;
+                                });
+                    }
+                    return Mono.error(e);
+                });
+    }
+
+    private Mono<StockPriceResponse> fetchFullStockDataFromApi(String symbol) {
         return stockClient.get()
                 .uri(uri -> uri.path("/query")
                         .queryParam("function", "GLOBAL_QUOTE")
@@ -226,24 +280,33 @@ public class MarketDataService {
                         throw new RuntimeException("Invalid API Key or API Configuration Error");
                     }
                     if (node.has("Note") || node.has("Information")) {
-                        log.warn("Alpha Vantage API limitation encountered for {}. Raw Body: {}", symbol, json);
-                        throw new RuntimeException("API Rate Limit or Information encountered");
+                        String info = node.has("Note") ? node.path("Note").asText() : node.path("Information").asText();
+                        log.warn("Rate limit/Info for {}: {}", symbol, info);
+                        throw new RuntimeException("API Limitation: " + info);
                     }
                     JsonNode q = node.path("Global Quote");
                     if (q.isMissingNode() || q.isEmpty()) {
                         log.warn("No data found for symbol: {}. Raw Body: {}", symbol, json);
                         throw new RuntimeException("Symbol not found");
                     }
+
+                    BigDecimal price = parseBigDecimal(q, "05. price", "0");
+                    BigDecimal open = parseBigDecimal(q, "02. open", "0");
+                    BigDecimal high = parseBigDecimal(q, "03. high", "0");
+                    BigDecimal low = parseBigDecimal(q, "04. low", "0");
+
+                    log.info("Successfully fetched {} price: {}", symbol, price);
+
                     return new StockPriceResponse(
-                            symbol,
-                            symbol,
-                            new BigDecimal(q.path("05. price").asText("0")),
-                            new BigDecimal(q.path("02. open").asText("0")),
-                            new BigDecimal(q.path("03. high").asText("0")),
-                            new BigDecimal(q.path("04. low").asText("0")),
+                            symbol, symbol, symbol, price, open, high, low,
                             LocalDateTime.now()
                     );
                 });
+    }
+
+    private BigDecimal parseBigDecimal(JsonNode node, String fieldName, String defaultValue) {
+        String text = node.path(fieldName).asText(defaultValue).replaceAll("[^\\d.]", "");
+        return new BigDecimal(text.isBlank() ? defaultValue : text);
     }
 
     private Mono<StockPriceResponse> fetchMutualFundFullData(String symbol) {
@@ -276,6 +339,7 @@ public class MarketDataService {
                     return new StockPriceResponse(
                             symbol,
                             symbol,
+                            symbol,
                             price,
                             BigDecimal.ZERO,
                             BigDecimal.ZERO,
@@ -293,9 +357,9 @@ public class MarketDataService {
         return symbol.replaceFirst("(?i)^MF[-:]", "");
     }
 
-    private Mono<Void> updatePortfolioService(String symbol, BigDecimal price, String token) {
+    private Mono<Void> updatePortfolioService(String symbol, BigDecimal price, String resolvedSymbol, String token) {
         return portfolioClient.put()
-                .uri("/portfolio/internal/prices/{symbol}?price={price}", symbol, price)
+                .uri("/portfolio/internal/prices/{symbol}?price={price}&resolvedSymbol={resolvedSymbol}", symbol, price, resolvedSymbol)
                 .headers(h -> {
                     if (token != null) {
                         h.set("Authorization", token);
@@ -314,7 +378,7 @@ public class MarketDataService {
                 .flatMap(localData -> {
                     if (localData.isPresent()) {
                         StockPrice sp = localData.get();
-                        return Mono.just(new StockPriceResponse(sp.getSymbol(), sp.getSymbol(), sp.getPrice(), sp.getOpen(), sp.getHigh(), sp.getLow(), sp.getLastUpdated()));
+                        return Mono.just(new StockPriceResponse(sp.getSymbol(), sp.getSymbol(), sp.getResolvedSymbol(), sp.getPrice(), sp.getOpen(), sp.getHigh(), sp.getLow(), sp.getLastUpdated()));
                     }
 
                     // अगर DB में नहीं है तो पहले Portfolio Service check करें फिर Live fetch करके save करें
@@ -328,11 +392,11 @@ public class MarketDataService {
                             .retrieve()
                             .onStatus(status -> !status.is2xxSuccessful(), response -> Mono.empty())
                             .bodyToMono(BigDecimal.class)
-                            .map(price -> new StockPriceResponse(symbol, symbol, price, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, LocalDateTime.now()))
+                            .map(price -> new StockPriceResponse(symbol, symbol, symbol, price, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, LocalDateTime.now()))
                             .switchIfEmpty(Mono.defer(() -> fetchLiveAndPersist(symbol)))
                             .onErrorResume(e -> {
                                 log.error("Error fetching live price for {}: {}", symbol, e.getMessage());
-                                return Mono.just(new StockPriceResponse(symbol, symbol, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, LocalDateTime.now()));
+                                return Mono.just(new StockPriceResponse(symbol, symbol, symbol, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, LocalDateTime.now()));
                             });
                 });
     }
