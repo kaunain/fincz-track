@@ -191,6 +191,36 @@ public class MarketDataService {
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
+    /**
+     * Sync a single symbol directly without needing portfolio service.
+     * Useful for CLI and cron jobs.
+     */
+    public Mono<BigDecimal> syncSingleSymbol(String symbol, boolean force) {
+        log.info("Direct sync for symbol: {} (force={})", symbol, force);
+        
+        return Mono.fromCallable(() -> stockPriceRepository.findBySymbol(symbol))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(existingPrice -> {
+                    if (!force && existingPrice.isPresent()) {
+                        LocalDateTime lastUpdate = existingPrice.get().getLastUpdated();
+                        if (lastUpdate != null && lastUpdate.isAfter(LocalDateTime.now().minusHours(refreshIntervalHours))) {
+                            log.info("Skipping {} - last updated {} (within {}h cooldown)", 
+                                symbol, lastUpdate, refreshIntervalHours);
+                            return Mono.just(existingPrice.get().getPrice());
+                        }
+                    }
+                    return fetchLiveAndPersist(symbol)
+                            .map(response -> {
+                                log.info("Saved price for {}: ₹{}", symbol, response.getPrice());
+                                return response.getPrice();
+                            });
+                })
+                .onErrorResume(e -> {
+                    log.error("Failed to sync {}: {}", symbol, e.getMessage());
+                    return Mono.error(e);
+                });
+    }
+
     private record ProcessingMetadata(List<String> staleSymbols, int total, int skipped) {}
 
     private Mono<List<String>> fetchTrackedSymbols(String token) {
