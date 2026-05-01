@@ -39,6 +39,8 @@ public interface InvestmentRepository extends JpaRepository<Investment, Long> {
 
     Page<Investment> findByUserEmail(String userEmail, Pageable pageable);
     
+    List<Investment> findBySymbol(String symbol);
+    
     List<Investment> findByUserEmailAndType(String userEmail, String type);
     
     /**

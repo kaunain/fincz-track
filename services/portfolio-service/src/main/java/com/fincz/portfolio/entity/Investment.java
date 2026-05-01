@@ -61,6 +61,21 @@ public class Investment {
     @Column(name = "current_price", nullable = false, precision = 19, scale = 2)
     private BigDecimal currentPrice;
 
+    // New fields from MarketDataService
+    @Column(name = "market_cap")
+    private BigDecimal marketCap;
+
+    private BigDecimal pe;
+    private BigDecimal eps;
+
+    @Column(name = "high_52")
+    private BigDecimal high52;
+
+    @Column(name = "low_52")
+    private BigDecimal low52;
+
+    private String exchange;
+
     @Column(nullable = false)
     private LocalDate purchaseDate;
 

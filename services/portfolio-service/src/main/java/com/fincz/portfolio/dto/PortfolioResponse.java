@@ -46,6 +46,14 @@ public class PortfolioResponse {
     private BigDecimal pnl;
     private BigDecimal pnlPercentage;
     private LocalDate purchaseDate;
+
+    // New fields from MarketDataService
+    private BigDecimal marketCap;
+    private BigDecimal pe;
+    private BigDecimal eps;
+    private BigDecimal high52;
+    private BigDecimal low52;
+    private String exchange;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -540,6 +540,12 @@ const ReportsPage = () => {
                     <th onClick={() => handleSort('buyPrice')} className="px-6 py-3 text-right font-semibold text-gray-900 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
                       <div className="flex items-center justify-end gap-1">Buy Price <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100" /></div>
                     </th>
+                    <th onClick={() => handleSort('currentPrice')} className="px-6 py-3 text-right font-semibold text-gray-900 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                      <div className="flex items-center justify-end gap-1">Live Price <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100" /></div>
+                    </th>
+                    <th onClick={() => handleSort('pe')} className="px-6 py-3 text-right font-semibold text-gray-900 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                      <div className="flex items-center justify-end gap-1">P/E <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100" /></div>
+                    </th>
                     <th onClick={() => handleSort('cagr')} className="px-6 py-3 text-right font-semibold text-gray-900 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
                       <div className="flex items-center justify-end gap-1">CAGR % <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100" /></div>
                     </th>
@@ -595,6 +601,14 @@ const ReportsPage = () => {
                       <td className="px-6 py-4 text-right text-gray-700 dark:text-gray-300">{parseFloat(item.units).toLocaleString()}</td>
                       <td className="px-6 py-4 text-right text-gray-700 dark:text-gray-300">
                         ₹{formatCurrency(parseFloat(item.buyPrice))}
+                      </td>
+                      <td className="px-6 py-4 text-right text-blue-600 dark:text-blue-400 font-medium">
+                        ₹{formatCurrency(parseFloat(item.currentPrice || item.buyPrice))}
+                      </td>
+                      <td className="px-6 py-4 text-right text-gray-600 dark:text-gray-400">
+                        {item.pe ? parseFloat(item.pe).toFixed(2) : (
+                          <span className="text-gray-400">--</span>
+                        )}
                       </td>
                       <td className={`px-6 py-4 text-right font-semibold ${parseFloat(item.cagr || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {item.cagr !== undefined ? (

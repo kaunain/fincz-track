@@ -230,18 +230,18 @@ public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
 **Objective:** Dashboard aur ReportsPage mein naye metrics (`marketCap`, `pe`, `eps`, `high52`, `low52`, `exchange`, `type`) ko display karna.
 
 ### Phase 1: Backend DTO & Mapping (DONE)
-- [x] `PortfolioResponse` update with new fields.
-- [x] `PortfolioService.mapToResponse` logic verification.
+- [x] `PortfolioResponse` update with new fields. (Completed)
+- [x] `PortfolioService.mapToResponse` logic verification. (Completed)
 
 ### Phase 2: Dashboard Integration
-- [ ] **Data Access**: Ensure `getPortfolio()` data includes new fields.
-- [ ] **UI Updates**:
-    - [ ] Add `currentPrice`, `P&L`, and `P&L %` columns to "Your Portfolio" table.
-    - [ ] Create expandable details or tooltips for secondary metrics (`P/E`, `EPS`, `52W High/Low`).
+ [x] **Data Access**: Ensure `getPortfolio()` data includes new fields.
+ [x] **UI Updates**:
+    - [x] Add `currentPrice`, `P&L`, and `P&L %` columns to "Your Portfolio" table.
+    - [ ] Create expandable details or tooltips for secondary metrics (`P/E`, `EPS`, `52W High/Low`, `Market Cap`, `Exchange`).
 - [ ] **Formatting**: Use `toLocaleString("en-IN")` for values.
 
 ### Phase 3: Reports Page Integration
-- [ ] **Advanced Table**: Add columns for all new metrics.
+ [x] **Advanced Table**: Add columns for all new metrics (Live Price, P/E).
 - [ ] **Interactivity**: Enable sorting/filtering on these columns using the internal pagination/sorting logic.
 - [ ] **Asset Drill-down**: Update the drill-down modal to show detailed market stats.
 

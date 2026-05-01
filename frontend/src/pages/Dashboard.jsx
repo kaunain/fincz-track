@@ -531,20 +531,37 @@ const Dashboard = () => {
                   {paginatedPortfolio.map((item, index) => (
                   <div key={item.id || index} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg group hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-900 dark:text-white">{item.name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                        {item.type} • {parseFloat(item.units).toLocaleString('en-IN')} units
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900 dark:text-white">{item.name}</p>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 dark:bg-gray-600 rounded text-gray-600 dark:text-gray-300 font-mono uppercase">
+                          {item.symbol}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-600 dark:text-gray-400 capitalize">
+                        <span>{item.type}</span>
+                        <span>•</span>
+                        <span>{parseFloat(item.units).toLocaleString('en-IN')} units</span>
+                        {item.currentPrice && (
+                          <>
+                            <span>•</span>
+                            <span className="text-blue-600 dark:text-blue-400 font-medium">@ ₹{formatCurrency(item.currentPrice)}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="text-lg font-bold text-primary dark:text-blue-400">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">
                           ₹{formatCurrency(item.currentValue)}
                         </p>
-                        <p className={`text-xs font-bold ${parseFloat(item.pnl || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {parseFloat(item.pnl || 0) >= 0 ? '+' : ''}
-                          {parseFloat(item.pnlPercentage || 0).toFixed(2)}%
-                        </p>
+                        <div className="flex flex-col items-end">
+                          <p className={`text-[10px] font-bold ${parseFloat(item.pnl || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+                            {parseFloat(item.pnl || 0) >= 0 ? '▲' : '▼'} ₹{formatCurrency(Math.abs(item.pnl || 0))}
+                          </p>
+                          <p className={`text-[10px] opacity-70 ${parseFloat(item.pnl || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+                            ({parseFloat(item.pnlPercentage || 0).toFixed(2)}%)
+                          </p>
+                        </div>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
