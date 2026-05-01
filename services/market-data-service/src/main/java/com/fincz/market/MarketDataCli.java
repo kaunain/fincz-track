@@ -110,6 +110,7 @@ public class MarketDataCli {
                                 log.error("✗ Sync failed: {}", e.getMessage());
                                 System.exit(1);
                             })
+                            .doOnTerminate(() -> log.info("Sync process finished."))
                             .block();
                 }
                 case "--list" -> {
