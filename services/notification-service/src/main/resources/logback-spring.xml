@@ -11,9 +11,9 @@
 
     <!-- File appender for application logs -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/auth-service.log</file>
+        <file>../../logs/notification-service.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/auth-service.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>../../logs/notification-service.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
@@ -25,9 +25,9 @@
 
     <!-- Security audit logger -->
     <appender name="SECURITY_AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/security-audit.log</file>
+        <file>../../logs/security-audit.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/security-audit.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>../../logs/security-audit.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>90</maxHistory>
             <totalSizeCap>500MB</totalSizeCap>
@@ -37,20 +37,8 @@
         </encoder>
     </appender>
 
-    <!-- Logger for security events -->
-    <logger name="com.fincz.auth.security" level="INFO" additivity="false">
-        <appender-ref ref="SECURITY_AUDIT"/>
-        <appender-ref ref="CONSOLE"/>
-    </logger>
-
-    <!-- Logger for authentication events -->
-    <logger name="com.fincz.auth.controller.AuthController" level="INFO" additivity="false">
-        <appender-ref ref="SECURITY_AUDIT"/>
-        <appender-ref ref="CONSOLE"/>
-    </logger>
-
     <!-- Application logger -->
-    <logger name="com.fincz.auth" level="INFO" additivity="false">
+    <logger name="com.fincz.notification" level="INFO" additivity="false">
         <appender-ref ref="FILE"/>
         <appender-ref ref="CONSOLE"/>
     </logger>
