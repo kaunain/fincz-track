@@ -85,14 +85,11 @@ public class MarketDataCli {
                             .doOnNext(summary -> {
                                 log.info("Sync completed: Total={}, Updated={}, Skipped={}", 
                                     summary.getTotalSymbols(), summary.getUpdatedSymbols(), summary.getSkippedSymbols());
-                                System.out.println("✓ Sync completed successfully");
-                                System.out.println("  Total: " + summary.getTotalSymbols());
-                                System.out.println("  Updated: " + summary.getUpdatedSymbols());
-                                System.out.println("  Skipped: " + summary.getSkippedSymbols());
+                                log.info("✓ Sync completed successfully. Total: {}, Updated: {}, Skipped: {}",
+                                    summary.getTotalSymbols(), summary.getUpdatedSymbols(), summary.getSkippedSymbols());
                             })
                             .doOnError(e -> {
-                                log.error("Sync failed: {}", e.getMessage());
-                                System.err.println("✗ Sync failed: " + e.getMessage());
+                                log.error("✗ Sync failed: {}", e.getMessage());
                                 System.exit(1);
                             })
                             .block();
@@ -100,18 +97,17 @@ public class MarketDataCli {
                 case "--sync-symbol" -> {
                     // Sync specific symbol without needing portfolio service
                     if (args.length < 2) {
-                        System.err.println("Error: Symbol required. Usage: --sync-symbol RELIANCE");
+                        log.error("Error: Symbol required. Usage: --sync-symbol RELIANCE");
                         System.exit(1);
                     }
                     String symbol = args[1].toUpperCase();
                     log.info("Syncing single symbol: {}", symbol);
                     marketDataService.syncSingleSymbol(symbol, force)
                             .doOnNext(result -> {
-                                System.out.println("✓ Synced: " + symbol + " = ₹" + result);
+                                log.info("✓ Synced: {} = ₹{}", symbol, result);
                             })
                             .doOnError(e -> {
-                                log.error("Sync failed for {}: {}", symbol, e.getMessage());
-                                System.err.println("✗ Sync failed: " + e.getMessage());
+                                log.error("✗ Sync failed: {}", e.getMessage());
                                 System.exit(1);
                             })
                             .block();
@@ -120,25 +116,25 @@ public class MarketDataCli {
                     log.info("Fetching all stock prices from database...");
                     List<StockPrice> prices = stockPriceRepository.findAll();
                     if (prices.isEmpty()) {
-                        System.out.println("No stock prices found in database.");
+                        log.info("No stock prices found in database.");
                     } else {
-                        System.out.println("\n=== Stored Stock Prices ===");
-                        System.out.printf("%-12s %-12s %-10s %-20s%n", "Symbol", "Price", "Change", "Last Updated");
-                        System.out.println("-".repeat(70));
+                        log.info("=== Stored Stock Prices ===");
+                        log.info(String.format("%-12s %-12s %-10s %-20s", "Symbol", "Price", "Change", "Last Updated"));
+                        log.info("-".repeat(70));
                         for (StockPrice price : prices) {
-                            System.out.printf("%-12s ₹%-11s %-10s %-20s%n",
+                            log.info(String.format("%-12s ₹%-11s %-10s %-20s",
                                 price.getSymbol(),
                                 price.getPrice() != null ? price.getPrice().toString() : "N/A",
-                                price.getPrice() != null ? "" : "",
-                                price.getLastUpdated() != null ? price.getLastUpdated().toString() : "Never");
+                                "",
+                                price.getLastUpdated() != null ? price.getLastUpdated().toString() : "Never"));
                         }
-                        System.out.println("-".repeat(70));
-                        System.out.println("Total: " + prices.size() + " symbols");
+                        log.info("-".repeat(70));
+                        log.info("Total: {} symbols", prices.size());
                     }
                 }
                 case "--price" -> {
                     if (args.length < 2) {
-                        System.err.println("Error: Symbol required. Usage: --price RELIANCE");
+                        log.error("Error: Symbol required. Usage: --price RELIANCE");
                         System.exit(1);
                     }
                     String symbol = args[1].toUpperCase();
@@ -146,21 +142,21 @@ public class MarketDataCli {
                     var priceOpt = stockPriceRepository.findBySymbol(symbol);
                     if (priceOpt.isPresent()) {
                         StockPrice price = priceOpt.get();
-                        System.out.println("\n=== " + symbol + " ===");
-                        System.out.println("Price: ₹" + price.getPrice());
-                        System.out.println("Open: ₹" + price.getOpen());
-                        System.out.println("High: ₹" + price.getHigh());
-                        System.out.println("Low: ₹" + price.getLow());
-                        System.out.println("Last Updated: " + price.getLastUpdated());
+                        log.info("=== {} ===", symbol);
+                        log.info("Price: ₹{}", price.getPrice());
+                        log.info("Open: ₹{}", price.getOpen());
+                        log.info("High: ₹{}", price.getHigh());
+                        log.info("Low: ₹{}", price.getLow());
+                        log.info("Last Updated: {}", price.getLastUpdated());
                         if (price.getMarketCap() != null) {
-                            System.out.println("Market Cap: ₹" + price.getMarketCap());
+                            log.info("Market Cap: ₹{}", price.getMarketCap());
                         }
                         if (price.getPe() != null) {
-                            System.out.println("P/E: " + price.getPe());
+                            log.info("P/E: {}", price.getPe());
                         }
                     } else {
-                        System.err.println("Symbol " + symbol + " not found in database.");
-                        System.err.println("Run --sync to fetch latest prices.");
+                        log.error("Symbol {} not found in database.", symbol);
+                        log.error("Run --sync to fetch latest prices.");
                         System.exit(1);
                     }
                 }
@@ -168,7 +164,7 @@ public class MarketDataCli {
                     printUsage();
                 }
                 default -> {
-                    System.err.println("Unknown command: " + command);
+                    log.error("Unknown command: {}", command);
                     printUsage();
                     System.exit(1);
                 }
@@ -177,7 +173,7 @@ public class MarketDataCli {
     }
 
     private void printUsage() {
-        System.out.println("""
+        log.info("""
             ╔════════════════════════════════════════════════════════════╗
             ║         Market Data CLI - Stock Price Sync Tool            ║
             ╚════════════════════════════════════════════════════════════╝

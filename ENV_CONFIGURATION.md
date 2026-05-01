@@ -132,6 +132,8 @@ EMAIL_FROM=noreply@your-domain.com
 | `MARKET_API_BASE_URL` | NO | https://api.example.com | Market data API endpoint |
 | `MARKET_API_KEY` | **YES*** | - | API key for market data service |
 | `MARKET_GOOGLE_SHEET_URL` | NO | - | Google Sheet CSV export URL for market data |
+| `LOGGING_LEVEL_COM_FINCZ_MARKET` | NO | INFO | Logging level for Market Data service (DEBUG, INFO, WARN, ERROR) |
+| `LOGGING_FILE_NAME` | NO | logs/market-data-service.log | Path to the log file where logs will be saved |
 
 *Required only if using real market data API
 

@@ -24,6 +24,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * @author Kaunain Ahmad
  * @since April 2026
@@ -31,6 +33,7 @@ import org.springframework.web.reactive.function.client.WebClient;
  * Market Data Service for Fincz-Track.
  * Provides stock prices and market data.
  */
+@Slf4j
 @SpringBootApplication
 @EnableCaching
 @EnableScheduling
@@ -42,6 +45,7 @@ public class MarketDataServiceApplication {
 	}
 
 	public static void main(String[] args) {
+		log.info("Starting Market Data Service...");
 		SpringApplication.run(MarketDataServiceApplication.class, args);
 	}
 

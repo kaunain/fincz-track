@@ -15,6 +15,18 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JAR_FILE="$SCRIPT_DIR/services/market-data-service/target/market-data-service-0.0.1-SNAPSHOT.jar"
 
+SKIP_BUILD=false
+NEW_ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--no-build" ]]; then
+        SKIP_BUILD=true
+    else
+        NEW_ARGS+=("$arg")
+    fi
+done
+# Reset positional parameters to ignore global flags
+set -- "${NEW_ARGS[@]}"
+
 # Load environment variables from .env if exists
 if [ -f "$SCRIPT_DIR/.env" ]; then
     set -a  # Auto-export all variables
@@ -23,8 +35,10 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
 fi
 
 # Default values (override in .env file)
-DB_URL="${DB_URL:-jdbc:postgresql://localhost:5432/fincz}"
+DB_URL="jdbc:postgresql://localhost:5432/market_db"
+echo "Using DB_URL: $DB_URL"
 DB_USER="${DB_USER:-postgres}"
+echo "Using DB_USER: $DB_USER"
 DB_PASS="${DB_PASS:-}"
 MARKET_API_KEY="${MARKET_API_KEY:-}"
 JWT_TOKEN="${JWT_TOKEN:-}"
@@ -51,11 +65,6 @@ info() {
 warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
-
-# Check if JAR exists
-if [ ! -f "$JAR_FILE" ]; then
-    error_exit "JAR file not found: $JAR_FILE"
-fi
 
 # Check required environment variables
 check_env() {
@@ -86,11 +95,32 @@ check_env() {
     fi
 }
 
+# Function to build the project
+build_project() {
+    info "Building Market Data Service to reflect latest changes..."
+    if (cd "$SCRIPT_DIR/services/market-data-service" && mvn clean package -DskipTests -q); then
+        info "Build successful."
+    else
+        error_exit "Build failed! Please check the errors above."
+    fi
+
+    if [ ! -f "$JAR_FILE" ]; then
+        error_exit "JAR file not found after build: $JAR_FILE"
+    fi
+}
+
 # Run the CLI
 run_cli() {
+    if [ "$SKIP_BUILD" = "true" ]; then
+        info "Skipping build process as requested..."
+        if [ ! -f "$JAR_FILE" ]; then
+            error_exit "JAR file not found: $JAR_FILE. Cannot skip build if JAR does not exist."
+        fi
+    else
+        build_project
+    fi
     check_env
     
-    info "Starting Market Data CLI..."
     info "JAR: $JAR_FILE"
     info "Command: $@"
     
@@ -107,7 +137,7 @@ show_help() {
 ╚════════════════════════════════════════════════════════════╝
 
 Usage:
-  ./run-market-cli.sh <command> [options]
+  ./run-market-cli.sh <command> [options] [--no-build]
 
 Commands:
   sync [force]       Sync all stock prices from API to DB
@@ -116,6 +146,7 @@ Commands:
                       Use 'force' as 3rd arg to ignore cooldown
   list               List all stored stock prices
   price <SYMBOL>     Get price for specific symbol
+  --no-build         Skip the Maven build step (uses existing JAR)
   help               Show this help message
 
 Examples:
