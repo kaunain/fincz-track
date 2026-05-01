@@ -51,7 +51,6 @@ import reactor.core.scheduler.Schedulers;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -59,6 +58,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -164,18 +164,26 @@ public class MarketDataService {
                         return new ProcessingMetadata(symbolsToUpdate, total, skipped);
                     }).subscribeOn(Schedulers.boundedElastic());
                 })
-                .map(meta -> {
-                    // Fire-and-forget: Start the background process without blocking the HTTP response
+                .flatMap(meta -> {
+                    AtomicInteger successCount = new AtomicInteger(0);
+                    AtomicInteger errorCount = new AtomicInteger(0);
+                    List<String> failedSymbols = new ArrayList<>();
+                    long startTime = System.currentTimeMillis();
+
+                    Mono<Void> syncTask = 
                     Flux.fromIterable(meta.staleSymbols)
                             .doOnSubscribe(s -> log.info("Background sync started for {} symbols...", meta.staleSymbols.size()))
                             .concatMap(symbol -> Mono.delay(Duration.ofMillis(500)) // Reduced delay for Google Sheets
                                     .then(processSymbolUpdate(symbol, force, token))
+                                    .doOnSuccess(v -> successCount.incrementAndGet())
                                     .onErrorResume(e -> {
                                         if (e.getMessage() != null && e.getMessage().contains("25 requests per day")) {
                                             log.error("CRITICAL: Alpha Vantage daily limit (25) reached. Terminating sync process.");
                                             return Mono.error(e); // Stop the whole Flux
                                         }
                                         log.error("Skipping sync for symbol {}: {}.", symbol, e.getMessage());
+                                        errorCount.incrementAndGet();
+                                        failedSymbols.add(symbol);
                                         return Mono.empty(); // Continue with next symbol
                                     })
                                     .then(Mono.fromRunnable(() -> {
@@ -186,17 +194,30 @@ public class MarketDataService {
                                     }).subscribeOn(Schedulers.boundedElastic()))
                                     .thenReturn(symbol))
                             .doFinally(signal -> {
-                                log.info("Background market data sync finished with signal: {}", signal);
+                                long duration = System.currentTimeMillis() - startTime;
+                                log.info("========================================");
+                                log.info("💹 MARKET DATA SYNC REPORT ({})", signal);
+                                log.info("----------------------------------------");
+                                log.info("Total Portfolio Symbols: {}", meta.total);
+                                log.info("Already Up-to-date    : {}", meta.skipped);
+                                log.info("Attempted Updates     : {}", meta.staleSymbols.size());
+                                log.info("Successfully Synced   : {}", successCount.get());
+                                log.info("Failed to Sync        : {}", errorCount.get());
+                                if (!failedSymbols.isEmpty()) {
+                                    log.warn("Failed Symbols        : {}", String.join(", ", failedSymbols));
+                                }
+                                log.info("Execution Time        : {}ms", duration);
+                                log.info("========================================");
+                                
                                 // Release lock
                                 syncStatusRepository.findById("GLOBAL_SYNC").ifPresent(s -> {
                                     s.setInProgress(false);
                                     syncStatusRepository.save(s);
                                 });
                             })
-                            .subscribe(); // Detach from the main response pipeline
+                            .then();
 
-                    // Return immediate summary to avoid frontend timeout
-                    return new SyncSummary(meta.total, meta.staleSymbols.size(), meta.skipped, meta.staleSymbols);
+                    return syncTask.thenReturn(new SyncSummary(meta.total, meta.staleSymbols.size(), meta.skipped, meta.staleSymbols));
                 });
     }
 
@@ -298,7 +319,7 @@ public class MarketDataService {
     }
 
     @Transactional
-    private void saveToLocalDb(StockPriceResponse response) {
+    public void saveToLocalDb(StockPriceResponse response) {
         StockPrice entity = stockPriceRepository.findBySymbol(response.getSymbol())
                 .orElse(StockPrice.builder()
                     .symbol(response.getSymbol())
@@ -338,10 +359,11 @@ public class MarketDataService {
         }
         
         stockPriceRepository.save(entity);
+        log.info(">> Persisted to Market DB: {} | Price: ₹{}", response.getSymbol(), response.getPrice());
     }
 
     @Transactional
-    private void saveToHistory(StockPriceResponse response) {
+    public void saveToHistory(StockPriceResponse response) {
         LocalDate today = LocalDate.now();
         // एक ही दिन में एक प्रतीक के लिए दो प्रविष्टियों से बचें
         if (stockPriceHistoryRepository.findBySymbolAndPriceDate(response.getSymbol(), today).isEmpty()) {
@@ -500,10 +522,13 @@ public class MarketDataService {
         }
         
         if (!newCache.isEmpty()) {
+            List<String> foundTickers = newCache.keySet().stream().filter(s -> !s.contains(".")).collect(Collectors.toList());
+            log.info("Found {} unique stocks in Google Sheet CSV: {}", foundTickers.size(), String.join(", ", foundTickers));
+            
             this.csvCache.clear();
             this.csvCache.putAll(newCache);
             this.lastCsvRefresh = LocalDateTime.now();
-            log.info("CSV cache refreshed with {} items.", csvCache.size());
+            log.info("CSV internal cache updated with {} mapping entries (including normalized symbols).", csvCache.size());
         } else {
             log.warn("CSV cache was not refreshed as no valid items were parsed.");
         }
