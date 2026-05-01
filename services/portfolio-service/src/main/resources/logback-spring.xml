@@ -11,9 +11,9 @@
 
     <!-- File appender for application logs -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/portfolio-service.log</file>
+        <file>../../logs/portfolio-service.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/portfolio-service.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>../../logs/portfolio-service.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
@@ -25,9 +25,9 @@
 
     <!-- Security audit logger -->
     <appender name="SECURITY_AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/security-audit.log</file>
+        <file>../../logs/security-audit.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/security-audit.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>../../logs/security-audit.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>90</maxHistory>
             <totalSizeCap>500MB</totalSizeCap>
