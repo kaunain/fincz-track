@@ -185,9 +185,15 @@ public class PortfolioController {
     public ResponseEntity<Void> updatePrices(
             @PathVariable String symbol,
             @RequestParam BigDecimal price,
-            @RequestParam(required = false) String resolvedSymbol) {
-        log.debug("Internal price update request for symbol: {}, price: {}, resolvedSymbol: {}", symbol, price, resolvedSymbol);
-        int updatedCount = service.updateCurrentPrices(symbol, price, resolvedSymbol);
+            @RequestParam(required = false) String resolvedSymbol,
+            @RequestParam(required = false) BigDecimal marketCap,
+            @RequestParam(required = false) BigDecimal pe,
+            @RequestParam(required = false) BigDecimal eps,
+            @RequestParam(required = false) BigDecimal high52,
+            @RequestParam(required = false) BigDecimal low52,
+            @RequestParam(required = false) String exchange) {
+        log.debug("Internal price update request for symbol: {}, price: {}", symbol, price);
+        int updatedCount = service.updateCurrentPrices(symbol, price, resolvedSymbol, marketCap, pe, eps, high52, low52, exchange);
         if (updatedCount == 0) {
             return ResponseEntity.noContent().build();
         }

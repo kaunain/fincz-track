@@ -301,7 +301,7 @@ public class MarketDataService {
                         }
                     }
                     return fetchLiveAndPersist(symbol)
-                            .flatMap(response -> updatePortfolioService(symbol, response.getPrice(), response.getResolvedSymbol(), token));
+                            .flatMap(response -> updatePortfolioService(symbol, response, token));
                 })
                 .onErrorResume(e -> {
                     log.error("Failed to update {}: {}", symbol, e.getMessage());
@@ -626,9 +626,19 @@ public class MarketDataService {
         return symbol.replaceFirst("(?i)^MF[-:]", "");
     }
 
-    private Mono<Void> updatePortfolioService(String symbol, BigDecimal price, String resolvedSymbol, String token) {
+    private Mono<Void> updatePortfolioService(String symbol, StockPriceResponse response, String token) {
         return portfolioClient.put()
-                .uri("/portfolio/internal/prices/{symbol}?price={price}&resolvedSymbol={resolvedSymbol}", symbol, price, resolvedSymbol)
+                .uri(uriBuilder -> uriBuilder
+                    .path("/portfolio/internal/prices/{symbol}")
+                    .queryParam("price", response.getPrice())
+                    .queryParam("resolvedSymbol", response.getResolvedSymbol())
+                    .queryParam("marketCap", response.getMarketCap())
+                    .queryParam("pe", response.getPe())
+                    .queryParam("eps", response.getEps())
+                    .queryParam("high52", response.getHigh52())
+                    .queryParam("low52", response.getLow52())
+                    .queryParam("exchange", response.getExchange())
+                    .build(symbol))
                 .headers(h -> {
                     if (token != null) {
                         h.set("Authorization", token);

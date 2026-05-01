@@ -258,12 +258,26 @@ public class PortfolioService {
      */
     @Transactional
     @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, allEntries = true)
-    public int updateCurrentPrices(String symbol, BigDecimal currentPrice, String resolvedSymbol) {
-        logger.info("Updating current prices for symbol {} to {} (Resolved: {})", symbol, currentPrice, resolvedSymbol);
+    public int updateCurrentPrices(String symbol, BigDecimal currentPrice, String resolvedSymbol, 
+                                   BigDecimal marketCap, BigDecimal pe, BigDecimal eps, 
+                                   BigDecimal high52, BigDecimal low52, String exchange) {
+        logger.info("Updating prices & metrics for {}: Price={}, MarketCap={}, PE={}", 
+                   symbol, currentPrice, marketCap, pe);
         try {
-            // Using bulk update for better performance and consistency
-            int updatedCount = repository.updatePriceBySymbol(symbol, currentPrice, resolvedSymbol);
-            
+            List<Investment> holdings = repository.findBySymbol(symbol);
+            holdings.forEach(h -> {
+                h.setCurrentPrice(currentPrice);
+                h.setResolvedSymbol(resolvedSymbol);
+                h.setMarketCap(marketCap);
+                h.setPe(pe);
+                h.setEps(eps);
+                h.setHigh52(high52);
+                h.setHigh52(low52);
+                h.setExchange(exchange);
+            });
+            repository.saveAll(holdings);
+            int updatedCount = holdings.size();
+
             if (updatedCount == 0) {
                 logger.warn("No investment holdings found for symbol: {}. No prices were updated.", symbol);
             } else {
@@ -345,22 +359,28 @@ public class PortfolioService {
                     .multiply(BigDecimal.valueOf(100));
         }
 
-        return new PortfolioResponse(
-                investment.getId(),
-                investment.getType(),
-                investment.getName(),
-                investment.getSymbol(),
-                investment.getResolvedSymbol(),
-                investment.getUnits(),
-                investment.getBuyPrice(),
-                investment.getCurrentPrice(),
-                totalInvestment,
-                currentValue,
-                pnl,
-                pnlPercentage,
-                investment.getPurchaseDate(),
-                investment.getCreatedAt(),
-                investment.getUpdatedAt()
-        );
+        return PortfolioResponse.builder()
+                .id(investment.getId())
+                .type(investment.getType())
+                .name(investment.getName())
+                .symbol(investment.getSymbol())
+                .resolvedSymbol(investment.getResolvedSymbol())
+                .units(investment.getUnits())
+                .buyPrice(investment.getBuyPrice())
+                .currentPrice(investment.getCurrentPrice())
+                .totalInvestment(totalInvestment)
+                .currentValue(currentValue)
+                .pnl(pnl)
+                .pnlPercentage(pnlPercentage)
+                .purchaseDate(investment.getPurchaseDate())
+                .marketCap(investment.getMarketCap())
+                .pe(investment.getPe())
+                .eps(investment.getEps())
+                .high52(investment.getHigh52())
+                .low52(investment.getLow52())
+                .exchange(investment.getExchange())
+                .createdAt(investment.getCreatedAt())
+                .updatedAt(investment.getUpdatedAt())
+                .build();
     }
 }
