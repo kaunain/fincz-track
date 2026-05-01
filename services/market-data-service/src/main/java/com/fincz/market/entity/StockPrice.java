@@ -46,4 +46,20 @@ public class StockPrice {
     
     @Column(name = "last_updated")
     private LocalDateTime lastUpdated;
+    
+    // Extended fields from Google Sheets CSV
+    @Column(name = "market_cap")
+    private BigDecimal marketCap;
+    
+    private BigDecimal pe;
+    private BigDecimal eps;
+    
+    @Column(name = "high_52")
+    private BigDecimal high52;
+    
+    @Column(name = "low_52")
+    private BigDecimal low52;
+    
+    private String exchange;
+    private String type;
 }

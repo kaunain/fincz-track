@@ -27,6 +27,9 @@ import com.fincz.market.repository.StockPriceRepository;
 import com.fincz.market.repository.SyncStatusRepository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
@@ -37,6 +40,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import java.io.IOException;
+import java.io.StringReader;
 import reactor.core.scheduler.Schedulers;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,42 +49,49 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class MarketDataService {
 
-    private final WebClient stockClient;
     private final WebClient mfClient;
     private final WebClient portfolioClient;
+    private final WebClient csvClient;
     private final ObjectMapper objectMapper;
-    private final String apiKey;
     private final StockPriceRepository stockPriceRepository;
     private final StockPriceHistoryRepository stockPriceHistoryRepository;
     private final SyncStatusRepository syncStatusRepository;
     private final int refreshIntervalHours;
+    private final String googleSheetCsvUrl;
+
+    private final Map<String, StockPriceResponse> csvCache = new ConcurrentHashMap<>();
+    private LocalDateTime lastCsvRefresh = LocalDateTime.MIN;
 
     public MarketDataService(WebClient.Builder webClientBuilder,
                              @Value("${market.api.stock-base-url:https://www.alphavantage.co}") String stockBaseUrl,
                              @Value("${market.api.mf-base-url:https://api.mfapi.in}") String mfBaseUrl,
                              @Value("${market.api.key:${MARKET_API_KEY:}}") String apiKey,
-                             @Value("${app.services.portfolio-url:http://localhost:8083}") String portfolioUrl,
-                             @Value("${market.api.refresh-interval-hours:24}") int refreshIntervalHours,
+                             @Value("${app.services.portfolio-url:http://localhost:8083}") String portfolioUrl, // Default for local dev
+                             @Value("${market.api.refresh-interval-hours:24}") int refreshIntervalHours, // Default refresh interval
+                             @Value("${market.api.google-sheet-url:${MARKET_GOOGLE_SHEET_URL:}}") String googleSheetCsvUrl, // MANDATORY: No hardcoded fallback
                              ObjectMapper objectMapper,
                              StockPriceRepository stockPriceRepository,
                              StockPriceHistoryRepository stockPriceHistoryRepository,
                              SyncStatusRepository syncStatusRepository) {
-        this.stockClient = webClientBuilder.baseUrl(stockBaseUrl).build();
-        this.mfClient = webClientBuilder.baseUrl(mfBaseUrl).build();
-        this.portfolioClient = webClientBuilder.baseUrl(portfolioUrl).build();
+        this.mfClient = webClientBuilder.clone().baseUrl(mfBaseUrl).build();
+        this.portfolioClient = webClientBuilder.clone().baseUrl(portfolioUrl).build();
+        this.csvClient = webClientBuilder.clone().build();
         this.objectMapper = objectMapper;
-        this.apiKey = apiKey;
         this.stockPriceRepository = stockPriceRepository;
         this.stockPriceHistoryRepository = stockPriceHistoryRepository;
         this.syncStatusRepository = syncStatusRepository;
         this.refreshIntervalHours = refreshIntervalHours;
+        this.googleSheetCsvUrl = googleSheetCsvUrl;
 
         if (apiKey == null || apiKey.isBlank() || "your_market_api_key".equals(apiKey)) {
             log.error("CRITICAL: Alpha Vantage API Key is NOT configured correctly. Stock price updates will fail.");
@@ -138,7 +150,7 @@ public class MarketDataService {
                     // Fire-and-forget: Start the background process without blocking the HTTP response
                     Flux.fromIterable(meta.staleSymbols)
                             .doOnSubscribe(s -> log.info("Background sync started for {} symbols...", meta.staleSymbols.size()))
-                            .concatMap(symbol -> Mono.delay(Duration.ofSeconds(13))
+                            .concatMap(symbol -> Mono.delay(Duration.ofMillis(500)) // Reduced delay for Google Sheets
                                     .then(processSymbolUpdate(symbol, force, token))
                                     .onErrorResume(e -> {
                                         if (e.getMessage() != null && e.getMessage().contains("25 requests per day")) {
@@ -227,8 +239,12 @@ public class MarketDataService {
     @Transactional
     private void saveToLocalDb(StockPriceResponse response) {
         StockPrice entity = stockPriceRepository.findBySymbol(response.getSymbol())
-                .orElse(new StockPrice());
+                .orElse(StockPrice.builder()
+                    .symbol(response.getSymbol())
+                    .resolvedSymbol(response.getResolvedSymbol())
+                    .build());
         
+        // Core price fields
         entity.setSymbol(response.getSymbol());
         entity.setResolvedSymbol(response.getResolvedSymbol());
         entity.setPrice(response.getPrice());
@@ -236,6 +252,29 @@ public class MarketDataService {
         entity.setHigh(response.getHigh());
         entity.setLow(response.getLow());
         entity.setLastUpdated(LocalDateTime.now());
+        
+        // Extended fields from Google Sheets CSV
+        if (response.getMarketCap() != null) {
+            entity.setMarketCap(response.getMarketCap());
+        }
+        if (response.getPe() != null) {
+            entity.setPe(response.getPe());
+        }
+        if (response.getEps() != null) {
+            entity.setEps(response.getEps());
+        }
+        if (response.getHigh52() != null) {
+            entity.setHigh52(response.getHigh52());
+        }
+        if (response.getLow52() != null) {
+            entity.setLow52(response.getLow52());
+        }
+        if (response.getExchange() != null) {
+            entity.setExchange(response.getExchange());
+        }
+        if (response.getType() != null) {
+            entity.setType(response.getType());
+        }
         
         stockPriceRepository.save(entity);
     }
@@ -260,73 +299,177 @@ public class MarketDataService {
     }
 
     private Mono<StockPriceResponse> fetchFullStockData(String symbol) {
-        return fetchFullStockDataFromApi(symbol)
-                .onErrorResume(e -> {
-                    // Resilience Fallback: If fetch fails and no suffix is present, try appending .NS (NSE)
-                    if (!symbol.contains(".")) {
-                        log.info("No data for '{}', attempting fallback with '.NS' suffix...", symbol);
-                        return fetchFullStockDataFromApi(symbol + ".NS")
-                                .map(response -> {
-                                    // Revert to original symbol so it matches DB and Portfolio records
-                                    response.setSymbol(symbol);
-                                    response.setName(symbol);
-                                    return response;
-                                });
-                    }
-                    return Mono.error(e);
-                });
+        return fetchFromGoogleSheetCsv(symbol);
     }
 
-    private Mono<StockPriceResponse> fetchFullStockDataFromApi(String symbol) {
-        return stockClient.get()
-                .uri(uri -> uri.path("/query")
-                        .queryParam("function", "GLOBAL_QUOTE")
-                        .queryParam("symbol", symbol)
-                        .queryParam("apikey", apiKey)
-                        .build())
+    /**
+     * Fetches market data from the configured Google Sheet CSV with local Map caching.
+     * Optimized: Single parse per cache refresh, O(1) lookup after.
+     */
+    private Mono<StockPriceResponse> fetchFromGoogleSheetCsv(String symbol) {
+        String normalizedSymbol = symbol.toUpperCase().trim();
+        
+        // Check cache first - if cache is fresh, no HTTP call needed
+        if (lastCsvRefresh.isAfter(LocalDateTime.now().minusMinutes(30)) && !csvCache.isEmpty()) {
+            StockPriceResponse cached = csvCache.get(normalizedSymbol);
+            if (cached == null && normalizedSymbol.contains(".")) {
+                cached = csvCache.get(normalizedSymbol.split("\\.")[0]);
+            }
+            if (cached != null) {
+                return Mono.just(cached);
+            }
+        }
+
+        log.info("Cache miss or stale for {}, refreshing from Google Sheet CSV...", symbol);
+        return csvClient.get()
+                .uri(googleSheetCsvUrl)
                 .retrieve()
                 .bodyToMono(String.class)
-                .map(json -> {
-                    JsonNode node;
-                    try {
-                        node = objectMapper.readTree(json);
-                    } catch (JsonProcessingException e) {
-                        log.error("Failed to parse Alpha Vantage response for {}. Raw Body: {}", symbol, json);
-                        throw new RuntimeException("Failed to parse Alpha Vantage response", e);
+                .flatMap(csvContent -> {
+                    // Parse entire CSV once and populate cache
+                    parseCsvToCache(csvContent);
+                    
+                    // Now lookup from populated cache
+                    StockPriceResponse match = csvCache.get(normalizedSymbol);
+                    if (match == null && normalizedSymbol.contains(".")) {
+                        match = csvCache.get(normalizedSymbol.split("\\.")[0]);
                     }
 
-                    if (node.has("Error Message")) {
-                        log.error("Alpha Vantage API Error for {}: {}. Raw Body: {}", symbol, node.path("Error Message").asText(), json);
-                        throw new RuntimeException("Invalid API Key or API Configuration Error");
+                    if (match != null) {
+                        return Mono.just(match);
                     }
-                    if (node.has("Note") || node.has("Information")) {
-                        String info = node.has("Note") ? node.path("Note").asText() : node.path("Information").asText();
-                        log.warn("Rate limit/Info for {}: {}", symbol, info);
-                        throw new RuntimeException("API Limitation: " + info);
-                    }
-                    JsonNode q = node.path("Global Quote");
-                    if (q.isMissingNode() || q.isEmpty()) {
-                        log.warn("No data found for symbol: {}. Raw Body: {}", symbol, json);
-                        throw new RuntimeException("Symbol not found");
-                    }
-
-                    BigDecimal price = parseBigDecimal(q, "05. price", "0");
-                    BigDecimal open = parseBigDecimal(q, "02. open", "0");
-                    BigDecimal high = parseBigDecimal(q, "03. high", "0");
-                    BigDecimal low = parseBigDecimal(q, "04. low", "0");
-
-                    log.info("Successfully fetched {} price: {}", symbol, price);
-
-                    return new StockPriceResponse(
-                            symbol, symbol, symbol, price, open, high, low,
-                            LocalDateTime.now()
-                    );
-                });
+                    
+                    log.warn("Symbol {} not found in Google Sheet CSV after parsing {} symbols", 
+                        symbol, csvCache.size());
+                    return Mono.<StockPriceResponse>error(
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, 
+                            "Symbol '" + symbol + "' not found in CSV registry. Available: " + csvCache.size() + " symbols"));
+                })
+                .doOnError(e -> log.error("Failed to fetch {} from Google Sheet: {}", symbol, e.getMessage()));
     }
 
-    private BigDecimal parseBigDecimal(JsonNode node, String fieldName, String defaultValue) {
-        String text = node.path(fieldName).asText(defaultValue).replaceAll("[^\\d.]", "");
-        return new BigDecimal(text.isBlank() ? defaultValue : text);
+    private void parseCsvToCache(String csvContent) {
+        Map<String, StockPriceResponse> newCache = new HashMap<>();
+
+        CSVFormat format = CSVFormat.DEFAULT.builder()
+                .setHeader()
+                .setSkipHeaderRecord(true)
+                .setIgnoreHeaderCase(true)
+                .setTrim(true)
+                .build();
+
+        try (StringReader reader = new StringReader(csvContent);
+             CSVParser csvParser = format.parse(reader)) {
+
+            for (CSVRecord record : csvParser) {
+                try {
+                    // --- Mandatory fields validation ---
+                    String ticker = record.isMapped("Ticker") ? record.get("Ticker").toUpperCase().trim() : null;
+                    if (ticker == null || ticker.isBlank()) {
+                        log.warn("Skipping CSV record due to missing or blank 'Ticker': {}", record);
+                        continue;
+                    }
+
+                    BigDecimal price = parseBigDecimal(record.isMapped("Price") ? record.get("Price") : null);
+                    if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+                        log.warn("Skipping ticker {} - invalid or zero 'Price': '{}'", 
+                            ticker, record.isMapped("Price") ? record.get("Price") : "N/A");
+                        continue;
+                    }
+
+                    // --- Optional fields parsing with graceful fallbacks ---
+                    // Note: Column name is often 'Priceopen' in sheets exported as CSV
+                    BigDecimal open = parseBigDecimal(record.get("Priceopen"));
+                    BigDecimal high = parseBigDecimal(record.get("High"));
+                    BigDecimal low = parseBigDecimal(record.get("Low"));
+                    BigDecimal marketCap = parseBigDecimal(record.get("Marketcap"));
+                    BigDecimal pe = parsePE(record.get("PE"));
+                    BigDecimal eps = parseBigDecimal(record.get("EPS"));
+                    BigDecimal high52 = parseBigDecimal(record.get("High52"));
+                    BigDecimal low52 = parseBigDecimal(record.get("Low52"));
+                    
+                    String exchange = safeGet(record, "Exchange");
+                    String type = safeGet(record, "Type");
+
+                    StockPriceResponse response = StockPriceResponse.builder()
+                            .symbol(ticker)
+                            .name(ticker)
+                            .resolvedSymbol(ticker)
+                            .price(price)
+                            .open(open != null ? open : price) // Default to current price if not available
+                            .high(high != null ? high : price) // Default to current price if not available
+                            .low(low != null ? low : price)   // Default to current price if not available
+                            .marketCap(marketCap)
+                            .pe(pe)
+                            .eps(eps)
+                            .high52(high52)
+                            .low52(low52)
+                            .exchange(exchange)
+                            .type(type)
+                            .lastUpdated(LocalDateTime.now())
+                            .build();
+
+                    newCache.put(ticker, response);
+                    
+                    // Store normalized version (without .NS/.BO suffix) for faster lookup
+                    if (ticker.contains(".")) {
+                        String baseSymbol = ticker.split("\\.")[0];
+                        newCache.putIfAbsent(baseSymbol, response);
+                    }
+                    
+                } catch (Exception e) {
+                    log.warn("Skipping malformed CSV record: {}. Error: {}", record, e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            log.error("Failed to parse CSV content from Google Sheet", e);
+        }
+        
+        if (!newCache.isEmpty()) {
+            this.csvCache.clear();
+            this.csvCache.putAll(newCache);
+            this.lastCsvRefresh = LocalDateTime.now();
+            log.info("CSV cache refreshed with {} items.", csvCache.size());
+        } else {
+            log.warn("CSV cache was not refreshed as no valid items were parsed.");
+        }
+    }
+
+    /**
+     * Safely parse BigDecimal with null handling.
+     */
+    private BigDecimal parseBigDecimal(String value) {
+        if (value == null || value.isBlank() || "#N/A".equalsIgnoreCase(value) || "#DIV/0!".equalsIgnoreCase(value)) {
+            return null;
+        }
+        try {
+            // Remove any commas used as thousand separators
+            String cleaned = value.replace(",", "").trim();
+            return new BigDecimal(cleaned);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Parse PE ratio - handle special cases like "#N/A".
+     */
+    private BigDecimal parsePE(String value) {
+        if (value == null || value.isBlank() || "#N/A".equalsIgnoreCase(value)) {
+            return null;
+        }
+        return parseBigDecimal(value);
+    }
+
+    /**
+     * Safely get string value from CSV record.
+     */
+    private String safeGet(CSVRecord record, String header) {
+        try {
+            return record.isMapped(header) ? record.get(header).trim() : "";
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private Mono<StockPriceResponse> fetchMutualFundFullData(String symbol) {
@@ -356,16 +499,16 @@ public class MarketDataService {
                     }
                     BigDecimal price = new BigDecimal(nav.trim());
                     
-                    return new StockPriceResponse(
-                            symbol,
-                            symbol,
-                            symbol,
-                            price,
-                            BigDecimal.ZERO,
-                            BigDecimal.ZERO,
-                            BigDecimal.ZERO,
-                            LocalDateTime.now()
-                    );
+                    return StockPriceResponse.builder()
+                            .symbol(symbol)
+                            .name(symbol)
+                            .resolvedSymbol(symbol)
+                            .price(price)
+                            .open(BigDecimal.ZERO)
+                            .high(BigDecimal.ZERO)
+                            .low(BigDecimal.ZERO)
+                            .lastUpdated(LocalDateTime.now())
+                            .build();
                 });
     }
 
@@ -398,7 +541,16 @@ public class MarketDataService {
                 .flatMap(localData -> {
                     if (localData.isPresent()) {
                         StockPrice sp = localData.get();
-                        return Mono.just(new StockPriceResponse(sp.getSymbol(), sp.getSymbol(), sp.getResolvedSymbol(), sp.getPrice(), sp.getOpen(), sp.getHigh(), sp.getLow(), sp.getLastUpdated()));
+                        return Mono.just(StockPriceResponse.builder()
+                            .symbol(sp.getSymbol())
+                            .name(sp.getSymbol())
+                            .resolvedSymbol(sp.getResolvedSymbol())
+                            .price(sp.getPrice())
+                            .open(sp.getOpen())
+                            .high(sp.getHigh())
+                            .low(sp.getLow())
+                            .lastUpdated(sp.getLastUpdated())
+                            .build());
                     }
 
                     // अगर DB में नहीं है तो पहले Portfolio Service check करें फिर Live fetch करके save करें
@@ -412,11 +564,29 @@ public class MarketDataService {
                             .retrieve()
                             .onStatus(status -> !status.is2xxSuccessful(), response -> Mono.empty())
                             .bodyToMono(BigDecimal.class)
-                            .map(price -> new StockPriceResponse(symbol, symbol, symbol, price, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, LocalDateTime.now()))
+                            .map(price -> StockPriceResponse.builder()
+                                .symbol(symbol)
+                                .name(symbol)
+                                .resolvedSymbol(symbol)
+                                .price(price)
+                                .open(BigDecimal.ZERO)
+                                .high(BigDecimal.ZERO)
+                                .low(BigDecimal.ZERO)
+                                .lastUpdated(LocalDateTime.now())
+                                .build())
                             .switchIfEmpty(Mono.defer(() -> fetchLiveAndPersist(symbol)))
                             .onErrorResume(e -> {
                                 log.error("Error fetching live price for {}: {}", symbol, e.getMessage());
-                                return Mono.just(new StockPriceResponse(symbol, symbol, symbol, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, LocalDateTime.now()));
+                                return Mono.just(StockPriceResponse.builder()
+                                .symbol(symbol)
+                                .name(symbol)
+                                .resolvedSymbol(symbol)
+                                .price(BigDecimal.ZERO)
+                                .open(BigDecimal.ZERO)
+                                .high(BigDecimal.ZERO)
+                                .low(BigDecimal.ZERO)
+                                .lastUpdated(LocalDateTime.now())
+                                .build());
                             });
                 });
     }

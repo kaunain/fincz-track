@@ -131,6 +131,7 @@ EMAIL_FROM=noreply@your-domain.com
 |----------|----------|---------|-------------|
 | `MARKET_API_BASE_URL` | NO | https://api.example.com | Market data API endpoint |
 | `MARKET_API_KEY` | **YES*** | - | API key for market data service |
+| `MARKET_GOOGLE_SHEET_URL` | NO | - | Google Sheet CSV export URL for market data |
 
 *Required only if using real market data API
 
