@@ -129,6 +129,8 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+					<!-- Default main class for web service -->
+					<mainClass>com.fincz.market.MarketDataServiceApplication</mainClass>
 				</configuration>
 			</plugin>
 
