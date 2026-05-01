@@ -32,16 +32,21 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import com.fincz.market.dto.StockPriceResponse;
 import com.fincz.market.dto.SyncSummary;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
+
 import java.io.IOException;
 import java.io.StringReader;
+import java.time.Duration;
 import reactor.core.scheduler.Schedulers;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +55,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -85,7 +91,19 @@ public class MarketDataService {
                              SyncStatusRepository syncStatusRepository) {
         this.mfClient = webClientBuilder.clone().baseUrl(mfBaseUrl).build();
         this.portfolioClient = webClientBuilder.clone().baseUrl(portfolioUrl).build();
-        this.csvClient = webClientBuilder.clone().build();
+        
+        // Create CSV client with browser-like headers and redirect handling
+        this.csvClient = webClientBuilder.clone()
+                .defaultHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .defaultHeader(HttpHeaders.ACCEPT, "text/csv,application/csv,text/plain,*/*")
+                .defaultHeader(HttpHeaders.ACCEPT_LANGUAGE, "en-US,en;q=0.9")
+                .clientConnector(new ReactorClientHttpConnector(
+                    HttpClient.create()
+                        .followRedirect(true)
+                        .responseTimeout(Duration.ofSeconds(30))
+                ))
+                .build();
+        
         this.objectMapper = objectMapper;
         this.stockPriceRepository = stockPriceRepository;
         this.stockPriceHistoryRepository = stockPriceHistoryRepository;
@@ -205,16 +223,28 @@ public class MarketDataService {
                 .bodyToMono(new ParameterizedTypeReference<List<String>>() {})
                 .onErrorResume(e -> {
                     log.warn("Portfolio Service unreachable. Falling back to symbols from Google Sheet registry.");
+                    log.debug("Attempting to fetch symbols from Google Sheet URL: {}", googleSheetCsvUrl);
                     return csvClient.get()
                             .uri(googleSheetCsvUrl)
                             .retrieve()
                             .bodyToMono(String.class)
                             .flatMap(csvContent -> {
+                                // Debug: Log first 200 chars to diagnose redirect issues
+                                String preview = csvContent.substring(0, Math.min(200, csvContent.length()));
+                                log.debug("Raw CSV response preview: {}", preview);
+                                
+                                // Check if response is HTML (redirect or error page)
+                                if (csvContent.trim().startsWith("<") || csvContent.contains("<!DOCTYPE") || csvContent.contains("<HTML>") || csvContent.contains("<HEAD>")) {
+                                    log.error("CRITICAL: Received HTML instead of CSV from Google Sheet. This indicates a redirect or access issue.");
+                                    log.error("Response starts with: {}", preview);
+                                    return Mono.<List<String>>error(new ResponseStatusException(HttpStatus.BAD_GATEWAY, 
+                                        "Google Sheet URL returned HTML instead of CSV. Check sharing settings: 'Anyone with link' must be enabled."));
+                                }
+                                
                                 parseCsvToCache(csvContent);
-                                // Sirf vahi symbols le rahe hain jo registry mein ticker format mein hain (.NS etc)
-                                List<String> symbols = csvCache.keySet().stream()
-                                        .filter(s -> s.contains(".") || isMutualFundSymbol(s))
-                                        .collect(Collectors.toList());
+                                // All symbols from Google Sheet (with or without .NS suffix)
+                                List<String> symbols = new ArrayList<>(csvCache.keySet());
+                                log.info("Found {} symbols from Google Sheet registry", symbols.size());
                                 return Mono.just(symbols);
                             })
                             .onErrorResume(err -> {
@@ -352,11 +382,24 @@ public class MarketDataService {
         }
 
         log.info("Cache miss or stale for {}, refreshing from Google Sheet CSV...", symbol);
+        log.debug("Google Sheet URL being used: {}", googleSheetCsvUrl);
         return csvClient.get()
                 .uri(googleSheetCsvUrl)
                 .retrieve()
                 .bodyToMono(String.class)
                 .flatMap(csvContent -> {
+                    // Debug: Log first 200 chars to diagnose redirect issues
+                    String preview = csvContent.substring(0, Math.min(200, csvContent.length()));
+                    log.debug("Raw response preview: {}", preview);
+                    
+                    // Check if response is HTML (redirect or error page)
+                    if (csvContent.trim().startsWith("<") || csvContent.contains("<!DOCTYPE") || csvContent.contains("<HTML>") || csvContent.contains("<HEAD>")) {
+                        log.error("CRITICAL: Received HTML instead of CSV from Google Sheet. This indicates a redirect or access issue.");
+                        log.error("Response starts with: {}", preview);
+                        return Mono.<StockPriceResponse>error(new ResponseStatusException(HttpStatus.BAD_GATEWAY, 
+                            "Google Sheet URL returned HTML instead of CSV. Check sharing settings: 'Anyone with link' must be enabled."));
+                    }
+                    
                     // Parse entire CSV once and populate cache
                     parseCsvToCache(csvContent);
                     
