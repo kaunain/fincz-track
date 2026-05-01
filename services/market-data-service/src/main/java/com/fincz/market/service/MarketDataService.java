@@ -375,6 +375,13 @@ public class MarketDataService {
                     .high(response.getHigh())
                     .low(response.getLow())
                     .priceDate(today)
+                    .marketCap(response.getMarketCap())
+                    .pe(response.getPe())
+                    .eps(response.getEps())
+                    .high52(response.getHigh52())
+                    .low52(response.getLow52())
+                    .exchange(response.getExchange())
+                    .type(response.getType())
                     .build();
             stockPriceHistoryRepository.save(history);
             log.debug("Saved EOD historical price for symbol: {} for date: {}", response.getSymbol(), today);
@@ -653,6 +660,13 @@ public class MarketDataService {
                             .high(sp.getHigh())
                             .low(sp.getLow())
                             .lastUpdated(sp.getLastUpdated())
+                            .marketCap(sp.getMarketCap())
+                            .pe(sp.getPe())
+                            .eps(sp.getEps())
+                            .high52(sp.getHigh52())
+                            .low52(sp.getLow52())
+                            .exchange(sp.getExchange())
+                            .type(sp.getType())
                             .build());
                     }
 
@@ -676,6 +690,8 @@ public class MarketDataService {
                                 .high(BigDecimal.ZERO)
                                 .low(BigDecimal.ZERO)
                                 .lastUpdated(LocalDateTime.now())
+                                .exchange("PORTFOLIO")
+                                .type("stock")
                                 .build())
                             .switchIfEmpty(Mono.defer(() -> fetchLiveAndPersist(symbol)))
                             .onErrorResume(e -> {

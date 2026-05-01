@@ -48,4 +48,20 @@ public class StockPriceHistory {
     
     @Column(name = "price_date")
     private LocalDate priceDate;
+
+    // Extended fields to match StockPrice
+    @Column(name = "market_cap")
+    private BigDecimal marketCap;
+    
+    private BigDecimal pe;
+    private BigDecimal eps;
+    
+    @Column(name = "high_52")
+    private BigDecimal high52;
+    
+    @Column(name = "low_52")
+    private BigDecimal low52;
+    
+    private String exchange;
+    private String type;
 }
