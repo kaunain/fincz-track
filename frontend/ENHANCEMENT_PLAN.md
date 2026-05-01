@@ -224,4 +224,30 @@ public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
 - **Accuracy**: Portfolio valuation matches real-time market data within 1% margin.
 
 ---
+
+## 📊 Frontend Integration Plan: New Market Metrics
+
+**Objective:** Dashboard aur ReportsPage mein naye metrics (`marketCap`, `pe`, `eps`, `high52`, `low52`, `exchange`, `type`) ko display karna.
+
+### Phase 1: Backend DTO & Mapping (DONE)
+- [x] `PortfolioResponse` update with new fields.
+- [x] `PortfolioService.mapToResponse` logic verification.
+
+### Phase 2: Dashboard Integration
+- [ ] **Data Access**: Ensure `getPortfolio()` data includes new fields.
+- [ ] **UI Updates**:
+    - [ ] Add `currentPrice`, `P&L`, and `P&L %` columns to "Your Portfolio" table.
+    - [ ] Create expandable details or tooltips for secondary metrics (`P/E`, `EPS`, `52W High/Low`).
+- [ ] **Formatting**: Use `toLocaleString("en-IN")` for values.
+
+### Phase 3: Reports Page Integration
+- [ ] **Advanced Table**: Add columns for all new metrics.
+- [ ] **Interactivity**: Enable sorting/filtering on these columns using the internal pagination/sorting logic.
+- [ ] **Asset Drill-down**: Update the drill-down modal to show detailed market stats.
+
+### Phase 4: Financial Logic & Accuracy
+- [ ] **Validation**: Gracefully handle `null` or `N/A` values for metrics.
+- [ ] **Consistency**: Ensure units/currency symbols are consistent across all views.
+
+---
 **Status**: Drafted | **Date**: April 2026
