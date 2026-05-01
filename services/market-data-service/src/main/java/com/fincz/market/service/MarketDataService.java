@@ -191,36 +191,6 @@ public class MarketDataService {
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
-    /**
-     * Sync a single symbol directly without needing portfolio service.
-     * Useful for CLI and cron jobs.
-     */
-    public Mono<BigDecimal> syncSingleSymbol(String symbol, boolean force) {
-        log.info("Direct sync for symbol: {} (force={})", symbol, force);
-        
-        return Mono.fromCallable(() -> stockPriceRepository.findBySymbol(symbol))
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(existingPrice -> {
-                    if (!force && existingPrice.isPresent()) {
-                        LocalDateTime lastUpdate = existingPrice.get().getLastUpdated();
-                        if (lastUpdate != null && lastUpdate.isAfter(LocalDateTime.now().minusHours(refreshIntervalHours))) {
-                            log.info("Skipping {} - last updated {} (within {}h cooldown)", 
-                                symbol, lastUpdate, refreshIntervalHours);
-                            return Mono.just(existingPrice.get().getPrice());
-                        }
-                    }
-                    return fetchLiveAndPersist(symbol)
-                            .map(response -> {
-                                log.info("Saved price for {}: ₹{}", symbol, response.getPrice());
-                                return response.getPrice();
-                            });
-                })
-                .onErrorResume(e -> {
-                    log.error("Failed to sync {}: {}", symbol, e.getMessage());
-                    return Mono.error(e);
-                });
-    }
-
     private record ProcessingMetadata(List<String> staleSymbols, int total, int skipped) {}
 
     private Mono<List<String>> fetchTrackedSymbols(String token) {
@@ -232,7 +202,38 @@ public class MarketDataService {
                     }
                 })
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<String>>() {});
+                .bodyToMono(new ParameterizedTypeReference<List<String>>() {})
+                .onErrorResume(e -> {
+                    log.warn("Portfolio Service unreachable. Falling back to symbols from Google Sheet registry.");
+                    return csvClient.get()
+                            .uri(googleSheetCsvUrl)
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .flatMap(csvContent -> {
+                                parseCsvToCache(csvContent);
+                                // Sirf vahi symbols le rahe hain jo registry mein ticker format mein hain (.NS etc)
+                                List<String> symbols = csvCache.keySet().stream()
+                                        .filter(s -> s.contains(".") || isMutualFundSymbol(s))
+                                        .collect(Collectors.toList());
+                                return Mono.just(symbols);
+                            })
+                            .onErrorResume(err -> {
+                                log.error("Critical Failure: Both Portfolio Service and Google Sheet are unreachable.");
+                                return Mono.just(List.of());
+                            });
+                });
+    }
+
+    /**
+     * Syncs a single symbol. Primarily used by CLI.
+     */
+    public Mono<BigDecimal> syncSingleSymbol(String symbol, boolean force) {
+        return processSymbolUpdate(symbol, force, null)
+                .then(Mono.defer(() -> Mono.fromCallable(() -> 
+                    stockPriceRepository.findBySymbol(symbol.toUpperCase())
+                        .map(StockPrice::getPrice)
+                        .orElse(BigDecimal.ZERO)
+                ).subscribeOn(Schedulers.boundedElastic())));
     }
 
     private Mono<Void> processSymbolUpdate(String symbol, boolean force, String token) {
@@ -560,7 +561,11 @@ public class MarketDataService {
                 })
                 .retrieve()
                 .toBodilessEntity()
-                .then();
+                .then()
+                .onErrorResume(e -> {
+                    log.warn("Failed to notify Portfolio Service for {}: {}. Price saved locally.", symbol, e.getMessage());
+                    return Mono.empty();
+                });
     }
 
     public Mono<StockPriceResponse> getStockPrice(String symbol, String token) {
