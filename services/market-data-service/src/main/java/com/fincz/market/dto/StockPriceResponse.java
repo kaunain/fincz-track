@@ -18,6 +18,7 @@
 package com.fincz.market.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -29,12 +30,13 @@ import java.time.LocalDateTime;
  * @author Kaunain Ahmad
  * @since April 2026
  *
- * DTO for stock price response.
+ * DTO for stock price response from Google Sheets CSV.
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class StockPriceResponse {
 
     private String symbol;
@@ -45,4 +47,13 @@ public class StockPriceResponse {
     private BigDecimal high;
     private BigDecimal low;
     private LocalDateTime lastUpdated;
+    
+    // Extended fields from Google Sheets CSV
+    private BigDecimal marketCap;
+    private BigDecimal pe;
+    private BigDecimal eps;
+    private BigDecimal high52;
+    private BigDecimal low52;
+    private String exchange;
+    private String type;
 }
