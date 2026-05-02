@@ -249,5 +249,9 @@ public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
 - [ ] **Validation**: Gracefully handle `null` or `N/A` values for metrics.
 - [ ] **Consistency**: Ensure units/currency symbols are consistent across all views.
 
+### 📤 Phase 5: Market Data Sync Tooling (New)
+- [x] **Registry Export**: Add CSV download for distinct assets (Ticker, Type, Exchange). (Backend Fix Applied)
+- [ ] **Sync Instructions**: Add info modal on how to update the Google Sheet for MarketDataService.
+
 ---
 **Status**: Drafted | **Date**: April 2026
