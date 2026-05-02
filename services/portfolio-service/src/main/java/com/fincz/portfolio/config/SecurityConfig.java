@@ -41,7 +41,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 // Allow health checks and test endpoints
-                .requestMatchers("/actuator/health", "/portfolio/test").permitAll()
+                .requestMatchers("/actuator/health", "/portfolio/test", "/portfolio/export-market-registry").permitAll()
                 // All portfolio operations require authentication
                 .anyRequest().authenticated()
             )

@@ -118,6 +118,9 @@ export const portfolioAPI = {
       'Content-Type': 'multipart/form-data',
     },
   }),
+  exportMarketRegistry: () => apiClient.get('/portfolio/export-market-registry', {
+    responseType: 'blob'
+  }),
 };
 
 export const marketAPI = {

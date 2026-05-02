@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { portfolioAPI, marketAPI } from '../utils/api';
-import { TrendingUp, DollarSign, Percent, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw, Upload, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { TrendingUp, DollarSign, Percent, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw, Upload, Download, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -261,6 +261,22 @@ const Dashboard = () => {
     }
   };
 
+  const handleExportRegistry = async () => {
+    try {
+      const response = await portfolioAPI.exportMarketRegistry();
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'Fin-Track - Live-Market-Data.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Market Registry exported successfully");
+    } catch (error) {
+      toast.error(error.userMessage || "Failed to export registry");
+    }
+  };
+
   const {
     isModalOpen: isDeleteModalOpen,
     isDeleting,
@@ -316,6 +332,15 @@ const Dashboard = () => {
               title="Refresh Data"
             >
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <button 
+              onClick={handleExportRegistry}
+              disabled={loading || !portfolio?.length}
+              className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm font-medium disabled:opacity-50"
+              title="Export assets for Google Sheets"
+            >
+              <Download size={18} />
+              <span className="hidden md:inline">Export Registry</span>
             </button>
             <button 
               onClick={() => navigate('/import')}
