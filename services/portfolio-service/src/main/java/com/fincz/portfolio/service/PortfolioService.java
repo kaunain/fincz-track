@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -220,6 +221,31 @@ public class PortfolioService {
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Generates a CSV registry of unique market assets for the user.
+     */
+    @Transactional(readOnly = true)
+    public String generateMarketDataRegistryCsv(String userEmail) {
+        Page<Investment> page = repository.findByUserEmail(userEmail, Pageable.unpaged());
+        
+        Map<String, Investment> distinctAssets = page.getContent().stream()
+            .collect(Collectors.toMap(
+                Investment::getSymbol,
+                inv -> inv,
+                (existing, replacement) -> existing
+            ));
+
+        StringBuilder csv = new StringBuilder("Ticker,Type,Exchange\n");
+        distinctAssets.values().forEach(inv -> {
+            csv.append(inv.getSymbol()).append(",")
+               .append(inv.getType() != null ? inv.getType() : "stock").append(",")
+               .append(inv.getExchange() != null ? inv.getExchange() : "NSE")
+               .append("\n");
+        });
+        
+        return csv.toString();
     }
 
     /**
