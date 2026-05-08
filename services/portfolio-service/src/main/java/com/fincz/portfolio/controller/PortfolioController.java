@@ -38,6 +38,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import java.nio.charset.StandardCharsets;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -107,6 +110,22 @@ public class PortfolioController {
             @RequestParam("file") MultipartFile file) {
         service.importZerodhaCsv(userEmail, file);
         return ResponseEntity.ok("Investments imported successfully");
+    }
+
+    /**
+     * Exports a registry of distinct user investments for market data sync.
+     */
+    @GetMapping("/export-market-registry")
+    public ResponseEntity<byte[]> exportMarketRegistry(@RequestHeader("X-User-Email") String email) {
+        log.info("User {} exporting market data registry", email);
+        String csvContent = service.generateMarketDataRegistryCsv(email);
+        byte[] csvBytes = csvContent.getBytes(StandardCharsets.UTF_8);
+        
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Fin-Track - Live-Market-Data.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .contentLength(csvBytes.length)
+                .body(csvBytes);
     }
 
     /**
