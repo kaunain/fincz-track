@@ -242,8 +242,8 @@ public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
 
 ### Phase 3: Reports Page Integration
  [x] **Advanced Table**: Add columns for all new metrics (Live Price, P/E).
-- [ ] **Interactivity**: Enable sorting/filtering on these columns using the internal pagination/sorting logic.
-- [ ] **Asset Drill-down**: Update the drill-down modal to show detailed market stats.
+- [x] **Interactivity**: Enable sorting/filtering on these columns using the internal pagination/sorting logic.
+- [x] **Asset Drill-down**: Update the drill-down modal to show detailed market stats.
 
 ### Phase 4: Financial Logic & Accuracy
 - [ ] **Validation**: Gracefully handle `null` or `N/A` values for metrics.
