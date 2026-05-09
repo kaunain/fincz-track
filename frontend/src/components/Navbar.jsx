@@ -1,11 +1,13 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, Menu, X, User, Settings, Search, Upload } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../utils/auth';
 import { useUser } from '../hooks/useUser';
 import { getInitials } from '../utils/stringUtils';
 import { useSearch } from '../context/SearchContext';
 import ThemeToggle from './ThemeToggle';
+import { useDebounce } from '../hooks/useDebounce';
+import apiClient from '../utils/api';
 
 const Navbar = () => {
   const { logout, isAuthenticated } = useAuth();
@@ -14,6 +16,68 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const searchInputRef = useRef(null);
+  
+  const [suggestions, setSuggestions] = useState([]);
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Local state for debouncing
+  const [localSearch, setLocalSearch] = useState(searchTerm || '');
+  const debouncedSearch = useDebounce(localSearch, 300);
+
+  useEffect(() => {
+    if (debouncedSearch !== searchTerm) {
+      setSearchTerm(debouncedSearch);
+    }
+  }, [debouncedSearch, setSearchTerm]);
+
+  useEffect(() => {
+    if (searchTerm !== debouncedSearch) {
+      setLocalSearch(searchTerm || '');
+    }
+  }, [searchTerm]);
+
+  // Fetch auto-suggestions when user types at least 3 characters
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (debouncedSearch.length >= 3 && isAuthenticated) {
+        try {
+          // Fetching global list to extract unique matching terms
+          const res = await apiClient.get('/portfolio?page=0&size=1000');
+          const items = res.data?.content || res.data || [];
+          const searchLower = debouncedSearch.toLowerCase();
+          
+          const matched = new Set();
+          items.forEach(item => {
+            if (item.name?.toLowerCase().includes(searchLower)) matched.add(item.name);
+            if (item.symbol?.toLowerCase().includes(searchLower)) matched.add(item.symbol);
+            if (item.type?.toLowerCase().includes(searchLower)) matched.add(item.type);
+            item.tags?.forEach(tag => {
+              if (tag.toLowerCase().includes(searchLower)) matched.add(tag);
+            });
+          });
+          setSuggestions(Array.from(matched).slice(0, 6)); // Top 6 suggestions
+        } catch (err) {
+          console.error("Failed to fetch suggestions:", err);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    };
+    fetchSuggestions();
+  }, [debouncedSearch, isAuthenticated]);
+
+  // Global shortcut to focus search input using '/'
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const isActive = (path) => location.pathname === path;
   const linkClass = (path) => 
@@ -42,20 +106,56 @@ const Navbar = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input 
                   type="text" 
+                  ref={searchInputRef}
                   placeholder="Search assets, types, or tags..." 
                   title="Separate multiple terms with commas to search for multiple tags or assets at once (e.g., tech, crypto, HDFC)"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setLocalSearch('');
+                      e.target.blur();
+                    }
+                  }}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setTimeout(() => setIsFocused(false), 200)}
               className="w-full pl-10 pr-10 py-2 bg-gray-100 dark:bg-gray-700 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary dark:text-white transition-all"
                 />
-            {searchTerm && (
+            {!localSearch && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden lg:flex pointer-events-none">
+                <kbd className="px-2 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md text-xs font-mono text-gray-400 font-bold shadow-sm">
+                  /
+                </kbd>
+              </div>
+            )}
+            {localSearch && (
               <button
-                onClick={() => setSearchTerm('')}
+                onClick={() => setLocalSearch('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 aria-label="Clear search"
               >
                 <X size={16} />
               </button>
+            )}
+            
+            {/* Auto-suggest Dropdown */}
+            {isFocused && suggestions.length > 0 && (
+              <ul className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden z-50 py-1">
+                {suggestions.map((suggestion, idx) => (
+                  <li 
+                    key={idx}
+                    onClick={() => {
+                      setLocalSearch(suggestion);
+                      setSearchTerm(suggestion);
+                      setIsFocused(false);
+                    }}
+                    className="px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2 transition-colors"
+                  >
+                    <Search size={14} className="text-gray-400" />
+                    {suggestion}
+                  </li>
+                ))}
+              </ul>
             )}
               </div>
             </div>

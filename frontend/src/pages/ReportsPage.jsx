@@ -16,6 +16,7 @@ import { useSearch } from '../context/SearchContext';
 import ImportPreviewModal from '../components/ImportPreviewModal';
 import { downloadCSV } from '../utils/exportUtils';
 import SystemHealthFooter from '../components/SystemHealthFooter';
+import { useDebounce } from '../hooks/useDebounce';
 
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
 const ITEMS_PER_PAGE = 10;
@@ -37,6 +38,25 @@ const ReportsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { searchTerm, setSearchTerm } = useSearch();
+  
+  // Local state for debouncing
+  const [localSearch, setLocalSearch] = useState(searchTerm || '');
+  const debouncedSearch = useDebounce(localSearch, 300); // 300ms delay
+
+  // Sync debounced value to global search context
+  useEffect(() => {
+    if (debouncedSearch !== searchTerm) {
+      setSearchTerm(debouncedSearch);
+    }
+  }, [debouncedSearch, setSearchTerm]); // Removed searchTerm from dependencies
+
+  // Sync external global search changes (e.g., cleared from Navbar) back to local
+  useEffect(() => {
+    if (searchTerm !== debouncedSearch) {
+      setLocalSearch(searchTerm || '');
+    }
+  }, [searchTerm]);
+
   const [fileForImport, setFileForImport] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [totalItems, setTotalItems] = useState(0);
@@ -534,8 +554,8 @@ const ReportsPage = () => {
                   type="text" 
                   placeholder="Filter table..." 
                   title="Separate multiple terms with commas to search for multiple tags or assets at once (e.g., tech, crypto, HDFC)"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
                   className="pl-9 pr-4 py-1.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary dark:text-white transition-all w-full md:w-64"
                 />
               </div>

@@ -88,6 +88,7 @@ const Dashboard = () => {
   } = usePagination({
     data: filteredPortfolio,
     itemsPerPage: ITEMS_PER_PAGE,
+    isServerSide: false,
     dependencies: [searchTerm]
   });
 
@@ -179,7 +180,7 @@ const Dashboard = () => {
       setError('');
       setIsOffline(false);
       const [portfolioRes, netWorthRes, analyticsRes] = await Promise.all([
-        portfolioAPI.getPortfolio(),
+        portfolioAPI.getPortfolio(0, 10000), // Fetch all items for global search & accurate charts
         portfolioAPI.getNetWorth(),
         portfolioAPI.getAnalyticsSummary(),
       ]);
