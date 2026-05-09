@@ -780,6 +780,19 @@ const ReportsPage = () => {
                   </div>
                 </div>
 
+                {/* Market Metrics Grid */}
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Market Metrics</h4>
+                  <div className="grid grid-cols-3 gap-y-4 gap-x-2">
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">Market Cap</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.marketCap ? `₹${formatCurrency(selectedAsset.marketCap)}` : 'N/A'}</span></div>
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">P/E Ratio</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.pe || 'N/A'}</span></div>
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">EPS</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.eps || 'N/A'}</span></div>
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">52W High</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.high52 ? `₹${formatCurrency(selectedAsset.high52)}` : 'N/A'}</span></div>
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">52W Low</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.low52 ? `₹${formatCurrency(selectedAsset.low52)}` : 'N/A'}</span></div>
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">Exchange</span><span className="font-semibold text-sm dark:text-white uppercase">{selectedAsset.exchange || 'N/A'}</span></div>
+                  </div>
+                </div>
+
                 {/* Actions Footer */}
                 <div className="pt-4 flex gap-3">
                   <button 

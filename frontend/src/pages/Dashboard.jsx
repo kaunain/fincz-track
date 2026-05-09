@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { portfolioAPI, marketAPI } from '../utils/api';
-import { TrendingUp, DollarSign, Percent, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw, Upload, Download, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { TrendingUp, DollarSign, Percent, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw, Upload, Download, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -30,6 +30,11 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const { searchTerm } = useSearch();
   const { theme } = useTheme();
+
+  const [expandedItems, setExpandedItems] = useState({});
+  const toggleExpand = (id) => {
+    setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const chartData = useMemo(() => portfolio ? portfolio.map(item => ({
     name: item.name,
@@ -553,8 +558,14 @@ const Dashboard = () => {
                 </AnimatePresence>
 
                 <div className="space-y-3 mb-4">
-                  {paginatedPortfolio.map((item, index) => (
-                  <div key={item.id || index} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg group hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                  {paginatedPortfolio.map((item, index) => {
+                    const isExpanded = expandedItems[item.id || index];
+                    return (
+                  <div key={item.id || index} className="flex flex-col bg-gray-50 dark:bg-gray-700/50 rounded-lg group transition-colors">
+                    <div 
+                      className="flex justify-between items-center p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                      onClick={() => toggleExpand(item.id || index)}
+                    >
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-gray-900 dark:text-white">{item.name}</p>
@@ -590,21 +601,46 @@ const Dashboard = () => {
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
-                          onClick={() => handleEdit(item)}
+                          onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
                           className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
                         >
                           <Pencil size={16} />
                         </button>
                         <button 
-                          onClick={() => handleDelete(item)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
                           className="p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
+                      <div className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </div>
                     </div>
                   </div>
-                ))}
+                  
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-600/50 grid grid-cols-2 md:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300 bg-gray-100/50 dark:bg-gray-800/30 rounded-b-lg">
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">Market Cap</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.marketCap ? `₹${formatCurrency(item.marketCap)}` : 'N/A'}</span></div>
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">P/E Ratio</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.pe || 'N/A'}</span></div>
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">EPS</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.eps || 'N/A'}</span></div>
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">52W High</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.high52 ? `₹${formatCurrency(item.high52)}` : 'N/A'}</span></div>
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">52W Low</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.low52 ? `₹${formatCurrency(item.low52)}` : 'N/A'}</span></div>
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">Exchange</span><span className="font-medium text-gray-900 dark:text-gray-200 uppercase">{item.exchange || 'N/A'}</span></div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                );
+              })}
               </div>
                 
                 {totalPages > 1 && (
