@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { portfolioAPI, marketAPI } from '../utils/api';
-import { TrendingUp, DollarSign, Percent, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw, Upload, Download, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { TrendingUp, DollarSign, Percent, Layers, Lightbulb, AlertCircle, Info, CheckCircle2, Pencil, Trash2, RefreshCw, Upload, Download, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import Card from '../components/Card';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -18,6 +18,15 @@ import SystemHealthFooter from '../components/SystemHealthFooter';
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
 const ITEMS_PER_PAGE = 5;
 
+const formatCompactNumber = (number) => {
+  if (!number || isNaN(number)) return '0';
+  const n = Math.abs(parseFloat(number));
+  if (n >= 10000000) return (n / 10000000).toFixed(2) + ' Cr';
+  if (n >= 100000) return (n / 100000).toFixed(2) + ' L';
+  if (n >= 1000) return (n / 1000).toFixed(2) + ' K';
+  return n.toFixed(2);
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [portfolio, setPortfolio] = useState(null);
@@ -25,7 +34,6 @@ const Dashboard = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
-  const [hasUnsavedPrices, setHasUnsavedPrices] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState('');
   const { searchTerm } = useSearch();
@@ -200,67 +208,15 @@ const Dashboard = () => {
   const refreshMarketPrices = async () => {
     if (!portfolio || portfolio.length === 0) return;
     
-    const symbols = [...new Set(portfolio.map(item => item.symbol))];
-    const loadingToast = toast.loading(`Refreshing ${symbols.length} market assets...`);
+    const loadingToast = toast.loading("Syncing portfolio with live market prices...");
     
     try {
       setLoading(true);
-      const results = [];
-      
-      // Sequential fetch with slight delay to respect API rate limits (e.g. Alpha Vantage free tier)
-      for (let i = 0; i < symbols.length; i++) {
-        const res = await marketAPI.getPrice(symbols[i]);
-        results.push(res);
-        if (symbols.length > 1) await new Promise(r => setTimeout(r, 200)); // 200ms gap
-      }
-      
-      const updatedPortfolio = portfolio.map(item => {
-        const match = results.find(r => r.data.symbol === item.symbol);
-        if (match && match.data.price) {
-          const newPrice = parseFloat(match.data.price);
-          const units = parseFloat(item.units);
-          const buyPrice = parseFloat(item.buyPrice);
-          const newValue = newPrice * units;
-          const newPnl = newValue - (buyPrice * units);
-          
-          return {
-            ...item,
-            currentPrice: newPrice,
-            currentValue: newValue,
-            pnl: newPnl,
-            pnlPercentage: (newPnl / (buyPrice * units)) * 100
-          };
-        }
-        return item;
-      });
-      
-      setPortfolio(updatedPortfolio);
-      setHasUnsavedPrices(true);
-      toast.success('Portfolio updated with latest market data', { id: loadingToast });
+      await marketAPI.syncPrices(true);
+      toast.success('Market prices synced successfully.', { id: loadingToast });
+      await fetchDashboardData();
     } catch (err) {
-      toast.error('Failed to fetch market data. Check Market Service status.', { id: loadingToast });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveMarketPrices = async () => {
-    if (!portfolio || portfolio.length === 0) return;
-    
-    const loadingToast = toast.loading('Saving updated prices to database...');
-    try {
-      setLoading(true);
-      const priceUpdates = portfolio.map(item => ({
-        symbol: item.symbol,
-        currentPrice: item.currentPrice
-      }));
-      
-      await portfolioAPI.updatePrices(priceUpdates);
-      setHasUnsavedPrices(false);
-      toast.success('All prices saved successfully', { id: loadingToast });
-      fetchDashboardData(); // Sync backend state (Net Worth etc.)
-    } catch (err) {
-      toast.error('Failed to save prices to database', { id: loadingToast });
+      toast.error(err.userMessage || 'Failed to sync market data. Check API configuration.', { id: loadingToast });
     } finally {
       setLoading(false);
     }
@@ -320,16 +276,6 @@ const Dashboard = () => {
               <Zap size={18} fill="currentColor" />
               <span className="hidden md:inline">Live Prices</span>
             </button>
-            {hasUnsavedPrices && (
-              <button 
-                onClick={saveMarketPrices}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium animate-pulse"
-              >
-                <CheckCircle2 size={18} />
-                <span className="hidden md:inline">Save Updates</span>
-              </button>
-            )}
             <button 
               onClick={fetchDashboardData}
               disabled={loading}
@@ -364,13 +310,13 @@ const Dashboard = () => {
         )}
 
         {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card loading={loading}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Net Worth</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
-                  ₹{formatCurrency(totalValue)}
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2" title={`₹${formatCurrency(totalValue)}`}>
+                  ₹{formatCompactNumber(totalValue)}
                 </p>
               </div>
               <DollarSign className="text-primary dark:text-blue-400" size={40} />
@@ -381,8 +327,8 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Profit/Loss</p>
-                <p className={`text-3xl font-bold mt-2 ${profitLoss >= 0 ? 'text-success' : 'text-danger'}`}>
-                  ₹{formatCurrency(Math.abs(profitLoss))}
+                <p className={`text-3xl font-bold mt-2 ${profitLoss >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${formatCurrency(Math.abs(profitLoss))}`}>
+                  {profitLoss >= 0 ? '+' : '-'}₹{formatCompactNumber(Math.abs(profitLoss))}
                 </p>
               </div>
               <TrendingUp className={profitLoss >= 0 ? 'text-success' : 'text-danger'} size={40} />
@@ -398,6 +344,18 @@ const Dashboard = () => {
                 </p>
               </div>
               <Percent className={profitPercentage >= 0 ? 'text-success' : 'text-danger'} size={40} />
+            </div>
+          </Card>
+
+          <Card loading={loading}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">ETF Investments</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
+                  {portfolio?.filter(item => item.type === 'etf').length || 0}
+                </p>
+              </div>
+              <Layers className="text-primary dark:text-blue-400" size={40} />
             </div>
           </Card>
         </div>
@@ -628,7 +586,7 @@ const Dashboard = () => {
                         className="overflow-hidden"
                       >
                         <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-600/50 grid grid-cols-2 md:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300 bg-gray-100/50 dark:bg-gray-800/30 rounded-b-lg">
-                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">Market Cap</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.marketCap ? `₹${formatCurrency(item.marketCap)}` : 'N/A'}</span></div>
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">Market Cap</span><span className="font-medium text-gray-900 dark:text-gray-200" title={item.marketCap ? `₹${formatCurrency(item.marketCap)}` : ''}>{item.marketCap ? `₹${formatCompactNumber(item.marketCap)}` : 'N/A'}</span></div>
                           <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">P/E Ratio</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.pe || 'N/A'}</span></div>
                           <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">EPS</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.eps || 'N/A'}</span></div>
                           <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">52W High</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.high52 ? `₹${formatCurrency(item.high52)}` : 'N/A'}</span></div>
