@@ -389,10 +389,16 @@ const Dashboard = () => {
         {/* Portfolio Visualization */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Net Worth Performance Trend */}
-          <Card title="Performance Trend" loading={loading}>
+          <Card title="Performance Trend" className="lg:col-span-2" loading={loading}>
             {historyData.length > 1 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={historyData}>
+                <AreaChart data={historyData}>
+                  <defs>
+                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#374151' : '#e5e7eb'} />
                   <XAxis 
                     dataKey="date" 
@@ -411,8 +417,17 @@ const Dashboard = () => {
                     }}
                     formatter={(value) => [`₹${formatCurrency(value)}`, 'Net Worth']}
                   />
-                  <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                </LineChart>
+                  <Area 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="#2563eb" 
+                    fillOpacity={1} 
+                    fill="url(#colorValue)" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: theme === 'dark' ? '#1f2937' : '#fff' }} 
+                    activeDot={{ r: 6, fill: '#2563eb', strokeWidth: 2, stroke: theme === 'dark' ? '#1f2937' : '#fff' }} 
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-80 flex flex-col items-center justify-center text-center p-4">
@@ -460,45 +475,9 @@ const Dashboard = () => {
             )}
           </Card>
 
-          {/* Pie Chart */}
-          <Card title="Asset Allocation" loading={loading}>
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: theme === 'dark' ? '#1f2937' : '#fff',
-                      borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
-                      borderRadius: '8px',
-                      color: theme === 'dark' ? '#f3f4f6' : '#111827'
-                    }}
-                    itemStyle={{ color: theme === 'dark' ? '#f3f4f6' : '#111827' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-80 flex items-center justify-center">
-                <p className="text-gray-500 dark:text-gray-400">No investments yet. Add some to get started!</p>
-              </div>
-            )}
-          </Card>
 
           {/* Portfolio Details */}
-          <Card title="Your Portfolio" loading={loading && !portfolio}>
+          <Card title="Your Portfolio" className="lg:col-span-2" loading={loading && !portfolio}>
             {filteredPortfolio && filteredPortfolio.length > 0 ? (
               <div className="flex flex-col h-full relative">
                 {/* Portfolio Loading Overlay */}
@@ -627,6 +606,43 @@ const Dashboard = () => {
               </div>
             ) : (
               <p className="text-gray-500 dark:text-gray-400 text-center py-8">No investments yet</p>
+            )}
+          </Card>
+
+          {/* Pie Chart */}
+          <Card title="Asset Allocation" loading={loading}>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: theme === 'dark' ? '#1f2937' : '#fff',
+                      borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
+                      borderRadius: '8px',
+                      color: theme === 'dark' ? '#f3f4f6' : '#111827'
+                    }}
+                    itemStyle={{ color: theme === 'dark' ? '#f3f4f6' : '#111827' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-80 flex items-center justify-center">
+                <p className="text-gray-500 dark:text-gray-400">No investments yet. Add some to get started!</p>
+              </div>
             )}
           </Card>
         </div>
