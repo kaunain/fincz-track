@@ -73,7 +73,7 @@ public class User {
     @Column(name = "recovery_code")
     private List<String> recoveryCodes = new ArrayList<>();
 
-    @Column(name = "avatar_url")
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
     @Column(name = "created_at")
