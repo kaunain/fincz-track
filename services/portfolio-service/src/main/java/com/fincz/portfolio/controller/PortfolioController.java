@@ -66,7 +66,8 @@ public class PortfolioController {
      */
     @PostMapping("/add")
     @Caching(evict = {
-        @CacheEvict(value = "portfolioList", key = "#userEmail"),
+        @CacheEvict(value = "portfolioList", allEntries = true),
+        @CacheEvict(value = "portfolioByType", allEntries = true),
         @CacheEvict(value = "netWorth", key = "#userEmail"),
         @CacheEvict(value = "analyticsSummary", key = "#userEmail")
     })
@@ -104,7 +105,10 @@ public class PortfolioController {
      * Imports investments from a CSV file.
      */
     @PostMapping("/import")
-    @CacheEvict(value = {"portfolioList", "netWorth", "analyticsSummary"}, key = "#userEmail")
+    @Caching(evict = {
+        @CacheEvict(value = {"portfolioList", "portfolioByType"}, allEntries = true),
+        @CacheEvict(value = {"netWorth", "analyticsSummary"}, key = "#userEmail")
+    })
     public ResponseEntity<String> importInvestments(
             @RequestHeader("X-User-Email") String userEmail,
             @RequestParam("file") MultipartFile file) {
@@ -132,7 +136,10 @@ public class PortfolioController {
      * Bulk adds or updates investments.
      */
     @PostMapping("/bulk")
-    @CacheEvict(value = {"portfolioList", "netWorth", "analyticsSummary"}, key = "#userEmail")
+    @Caching(evict = {
+        @CacheEvict(value = {"portfolioList", "portfolioByType"}, allEntries = true),
+        @CacheEvict(value = {"netWorth", "analyticsSummary"}, key = "#userEmail")
+    })
     public ResponseEntity<Void> bulkAdd(
             @RequestHeader("X-User-Email") String userEmail,
             @RequestBody List<AddInvestmentRequest> requests) {
@@ -240,7 +247,8 @@ public class PortfolioController {
      */
     @PutMapping("/{id}")
     @Caching(evict = {
-        @CacheEvict(value = "portfolioList", key = "#userEmail"),
+        @CacheEvict(value = "portfolioList", allEntries = true),
+        @CacheEvict(value = "portfolioByType", allEntries = true),
         @CacheEvict(value = "netWorth", key = "#userEmail"),
         @CacheEvict(value = "analyticsSummary", key = "#userEmail")
     })
@@ -261,7 +269,8 @@ public class PortfolioController {
      */
     @DeleteMapping("/{id}")
     @Caching(evict = {
-        @CacheEvict(value = "portfolioList", key = "#userEmail"),
+        @CacheEvict(value = "portfolioList", allEntries = true),
+        @CacheEvict(value = "portfolioByType", allEntries = true),
         @CacheEvict(value = "netWorth", key = "#userEmail"),
         @CacheEvict(value = "analyticsSummary", key = "#userEmail")
     })

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { portfolioAPI, marketAPI } from '../utils/api';
@@ -20,12 +20,21 @@ import SystemHealthFooter from '../components/SystemHealthFooter';
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
 const ITEMS_PER_PAGE = 10;
 
+const formatCompactNumber = (number) => {
+  if (!number || isNaN(number)) return '0';
+  const n = Math.abs(parseFloat(number));
+  if (n >= 10000000) return (n / 10000000).toFixed(2) + ' Cr';
+  if (n >= 100000) return (n / 100000).toFixed(2) + ' L';
+  if (n >= 1000) return (n / 1000).toFixed(2) + ' K';
+  return n.toFixed(2);
+};
+
 const ReportsPage = () => {
   const navigate = useNavigate();
   const [portfolio, setPortfolio] = useState(null);
   const [analytics, setAnalytics] = useState(null);
+  const [netWorth, setNetWorth] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [hasUnsavedPrices, setHasUnsavedPrices] = useState(false);
   const [error, setError] = useState('');
   const { searchTerm, setSearchTerm } = useSearch();
   const [fileForImport, setFileForImport] = useState(null);
@@ -97,11 +106,9 @@ const ReportsPage = () => {
     startIndex,
     endIndex
   } = usePagination({
-    data: portfolio || [],
+    data: filteredAndSortedPortfolio,
     itemsPerPage: ITEMS_PER_PAGE,
-    isServerSide: true,
-    totalItems: totalItems,
-    onPageChange: (newPage) => fetchPortfolioData(newPage),
+    isServerSide: false,
     dependencies: [searchTerm, sortConfig]
   });
 
@@ -140,7 +147,17 @@ const ReportsPage = () => {
     }));
   }, [analytics]);
 
-  const totalPortfolioValue = useMemo(() => chartData.reduce((sum, item) => sum + item.total, 0), [chartData]);
+  const historyData = useMemo(() => {
+    if (!analytics || !analytics.netWorthHistory) return [];
+    // Sort by date to ensure the line chart displays chronologically
+    return Object.entries(analytics.netWorthHistory)
+      .map(([date, value]) => ({ date, value: parseFloat(value) }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [analytics]);
+
+  const totalPortfolioValue = netWorth ? parseFloat(netWorth.currentValue || 0) : 0;
+  const profitLoss = netWorth ? parseFloat(netWorth.totalPnl || 0) : 0;
+  const profitPercentage = netWorth ? parseFloat(netWorth.pnlPercentage || 0) : 0;
 
   const taxStats = useMemo(() => {
     const total80C = parseFloat(analytics?.taxSummary?.totalInvested80C || 0);
@@ -161,13 +178,13 @@ const ReportsPage = () => {
     fetchPortfolioData();
   }, []);
 
-  const fetchPortfolioData = async (page = 1) => {
+  const fetchPortfolioData = async () => {
     try {
       setLoading(true);
-      const pageIndex = page - 1; // Backend is 0-indexed
-      const [portfolioRes, analyticsRes] = await Promise.all([
-        portfolioAPI.getPortfolio(pageIndex, ITEMS_PER_PAGE, `${sortConfig.key},${sortConfig.direction}`),
+      const [portfolioRes, analyticsRes, netWorthRes] = await Promise.all([
+        portfolioAPI.getPortfolio(0, 10000), // Fetch all items for global analytics
         portfolioAPI.getAnalyticsSummary(),
+        portfolioAPI.getNetWorth(),
       ]);
 
       // Handle Spring Data Page object or List
@@ -179,6 +196,7 @@ const ReportsPage = () => {
         setTotalItems(portfolioRes.data.length);
       }
       setAnalytics(analyticsRes.data);
+      setNetWorth(netWorthRes.data);
     } catch (err) {
       console.error('Reports data error:', err);
       setError(err.userMessage || 'Failed to load reports. Please try again.');
@@ -191,40 +209,14 @@ const ReportsPage = () => {
     const loadingToast = toast.loading("Syncing portfolio with live market prices...");
     try {
       setLoading(true);
-      const response = await marketAPI.syncPrices();
-      const { updatedSymbols, skippedSymbols } = response.data;
-      
+      await marketAPI.syncPrices(true);
       toast.success(
-        `Sync initiated: ${updatedSymbols} assets are being updated. Refresh the page in a few minutes to see live data.`,
+        `Market prices synced successfully.`,
         { id: loadingToast }
       );
-      
-      // Refresh table to show new prices from DB
       await fetchPortfolioData();
     } catch (err) {
-      toast.error(err.userMessage || 'Failed to fetch market data', { id: loadingToast });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveMarketPrices = async () => {
-    if (!portfolio || portfolio.length === 0) return;
-    
-    const loadingToast = toast.loading('Saving updated prices to database...');
-    try {
-      setLoading(true);
-      const priceUpdates = portfolio.map(item => ({
-        symbol: item.symbol,
-        currentPrice: item.currentPrice
-      }));
-      
-      await portfolioAPI.updatePrices(priceUpdates);
-      setHasUnsavedPrices(false);
-      toast.success('All prices saved successfully', { id: loadingToast });
-      fetchPortfolioData();
-    } catch (err) {
-      toast.error('Failed to save prices to database', { id: loadingToast });
+      toast.error(err.userMessage || 'Failed to sync market data. Check API configuration.', { id: loadingToast });
     } finally {
       setLoading(false);
     }
@@ -287,16 +279,6 @@ const ReportsPage = () => {
               <Zap size={18} fill="currentColor" />
               <span className="hidden md:inline">Live Prices</span>
             </button>
-            {hasUnsavedPrices && (
-              <button 
-                onClick={saveMarketPrices}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium animate-pulse"
-              >
-                <CheckCircle2 size={18} />
-                <span className="hidden md:inline">Save Updates</span>
-              </button>
-            )}
             <button 
               onClick={() => navigate('/import')}
               className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-md font-medium"
@@ -321,17 +303,28 @@ const ReportsPage = () => {
         )}
 
         {/* Summary Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Investments</p>
             <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">{totalItems}</p>
           </Card>
           <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Value</p>
-            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-              ₹{formatCurrency(totalPortfolioValue)}
+            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1" title={`₹${formatCurrency(totalPortfolioValue)}`}>
+              ₹{formatCompactNumber(totalPortfolioValue)}
             </p>
           </Card>
+        <Card loading={loading}>
+          <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Profit/Loss</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className={`text-3xl font-bold ${profitLoss >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${formatCurrency(Math.abs(profitLoss))}`}>
+              {profitLoss >= 0 ? '+' : '-'}₹{formatCompactNumber(Math.abs(profitLoss))}
+            </p>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${profitPercentage >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+              {profitPercentage >= 0 ? '▲' : '▼'} {Math.abs(profitPercentage).toFixed(2)}%
+            </span>
+          </div>
+        </Card>
           <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Stock Investments</p>
             <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">
@@ -342,6 +335,12 @@ const ReportsPage = () => {
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Mutual Funds</p>
             <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">
               {portfolio?.filter(item => item.type === 'mf').length || 0}
+            </p>
+          </Card>
+          <Card loading={loading}>
+            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">ETFs</p>
+            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+              {portfolio?.filter(item => item.type === 'etf').length || 0}
             </p>
           </Card>
           <Card loading={loading}>
@@ -385,7 +384,43 @@ const ReportsPage = () => {
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Net Worth Performance Trend */}
+          <Card title="Performance Trend" loading={loading}>
+            {historyData.length > 1 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={historyData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#374151' : '#e5e7eb'} />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 10, fill: theme === 'dark' ? '#9ca3af' : '#4b5563' }}
+                    tickFormatter={(str) => new Date(str).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 10, fill: theme === 'dark' ? '#9ca3af' : '#4b5563' }}
+                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: theme === 'dark' ? '#1f2937' : '#fff',
+                      borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
+                      borderRadius: '8px',
+                      color: theme === 'dark' ? '#f3f4f6' : '#111827'
+                    }}
+                    itemStyle={{ color: theme === 'dark' ? '#f3f4f6' : '#111827' }}
+                    formatter={(value) => [`₹${formatCurrency(value)}`, 'Net Worth']}
+                  />
+                  <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-80 flex flex-col items-center justify-center text-center p-4">
+                <TrendingUp className="text-gray-300 mb-2" size={48} />
+                <p className="text-gray-500 dark:text-gray-400">Track your portfolio daily to see performance trends.</p>
+              </div>
+            )}
+          </Card>
+
           {/* Concentration Risk Chart */}
           <Card title="Concentration Risk" loading={loading}>
             {concentrationData.length > 0 ? (
@@ -510,7 +545,7 @@ const ReportsPage = () => {
           loading={loading && !portfolio}
         >
           {portfolio && portfolio.length > 0 ? (
-            <div className="overflow-x-auto relative">
+          <div className="overflow-x-auto overflow-y-auto max-h-[600px] relative">
               {/* Table Loading Overlay */}
               <AnimatePresence>
                 {loading && portfolio && (
@@ -526,7 +561,7 @@ const ReportsPage = () => {
               </AnimatePresence>
 
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+            <thead className="sticky top-0 z-20 bg-gray-50/95 dark:bg-gray-800/95 backdrop-blur-md shadow-sm border-b border-gray-200 dark:border-gray-700">
                   <tr>
                     <th onClick={() => handleSort('name')} className="px-6 py-3 text-left font-semibold text-gray-900 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
                       <div className="flex items-center gap-1">Name <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100" /></div>
@@ -784,7 +819,7 @@ const ReportsPage = () => {
                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Market Metrics</h4>
                   <div className="grid grid-cols-3 gap-y-4 gap-x-2">
-                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">Market Cap</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.marketCap ? `₹${formatCurrency(selectedAsset.marketCap)}` : 'N/A'}</span></div>
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">Market Cap</span><span className="font-semibold text-sm dark:text-white" title={selectedAsset.marketCap ? `₹${formatCurrency(selectedAsset.marketCap)}` : ''}>{selectedAsset.marketCap ? `₹${formatCompactNumber(selectedAsset.marketCap)}` : 'N/A'}</span></div>
                     <div className="flex flex-col"><span className="text-[10px] text-gray-500">P/E Ratio</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.pe || 'N/A'}</span></div>
                     <div className="flex flex-col"><span className="text-[10px] text-gray-500">EPS</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.eps || 'N/A'}</span></div>
                     <div className="flex flex-col"><span className="text-[10px] text-gray-500">52W High</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.high52 ? `₹${formatCurrency(selectedAsset.high52)}` : 'N/A'}</span></div>

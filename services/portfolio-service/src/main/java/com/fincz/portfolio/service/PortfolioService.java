@@ -29,6 +29,7 @@ import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.slf4j.Logger;
@@ -68,7 +69,10 @@ public class PortfolioService {
      * Adds a new investment to user's portfolio.
      */
     @Transactional
-    @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, key = "#userEmail")
+    @Caching(evict = {
+        @CacheEvict(value = "netWorth", key = "#userEmail"),
+        @CacheEvict(value = {"portfolioList", "portfolioByType"}, allEntries = true)
+    })
     public PortfolioResponse addInvestment(String userEmail, AddInvestmentRequest request) {
         logger.info("Adding investment for user {}: symbol={}, units={}, buyPrice={}",
                    userEmail, request.getSymbol(), request.getUnits(), request.getBuyPrice());
@@ -104,7 +108,10 @@ public class PortfolioService {
     /**
      * Bulk adds or updates investments from a list of requests.
      */
-    @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, key = "#userEmail")
+    @Caching(evict = {
+        @CacheEvict(value = "netWorth", key = "#userEmail"),
+        @CacheEvict(value = {"portfolioList", "portfolioByType"}, allEntries = true)
+    })
     public void bulkAddInvestments(String userEmail, List<AddInvestmentRequest> requests) {
         logger.info("Bulk adding {} investments for user: {}", requests.size(), userEmail);
         
@@ -160,7 +167,10 @@ public class PortfolioService {
     /**
      * Imports investments from a Zerodha holdings CSV file.
      */
-    @CacheEvict(value = {"netWorth", "portfolioList", "portfolioByType"}, key = "#userEmail")
+    @Caching(evict = {
+        @CacheEvict(value = "netWorth", key = "#userEmail"),
+        @CacheEvict(value = {"portfolioList", "portfolioByType"}, allEntries = true)
+    })
     public void importZerodhaCsv(String userEmail, MultipartFile file) {
         logger.info("Importing Zerodha CSV for user: {}", userEmail);
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
@@ -328,7 +338,10 @@ public class PortfolioService {
      * Updates an existing investment.
      */
     @Transactional
-    @CacheEvict(value = "netWorth", key = "#userEmail")
+    @Caching(evict = {
+        @CacheEvict(value = "netWorth", key = "#userEmail"),
+        @CacheEvict(value = {"portfolioList", "portfolioByType"}, allEntries = true)
+    })
     public PortfolioResponse updateInvestment(Long id, String userEmail, AddInvestmentRequest request) {
         logger.info("Updating investment {} for user {}", id, userEmail);
 
@@ -359,7 +372,10 @@ public class PortfolioService {
      * Deletes an investment from user's portfolio.
      */
     @Transactional
-    @CacheEvict(value = "netWorth", key = "#userEmail")
+    @Caching(evict = {
+        @CacheEvict(value = "netWorth", key = "#userEmail"),
+        @CacheEvict(value = {"portfolioList", "portfolioByType"}, allEntries = true)
+    })
     public void deleteInvestment(Long id, String userEmail) {
         logger.info("Deleting investment {} for user {}", id, userEmail);
 

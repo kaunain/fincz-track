@@ -164,6 +164,7 @@ const AddInvestment = () => {
               >
                 <option value="stock">Stock</option>
                 <option value="mf">Mutual Fund</option>
+                <option value="etf">ETF</option>
                 <option value="elss">ELSS (Tax Saving MF)</option>
                 <option value="nps">NPS</option>
                 <option value="ppf">PPF</option>
