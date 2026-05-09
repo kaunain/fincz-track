@@ -630,6 +630,7 @@ const Dashboard = () => {
                     ))}
                   </Pie>
                   <Tooltip 
+                    formatter={(value) => `₹${formatCurrency(value)}`}
                     contentStyle={{ 
                       backgroundColor: theme === 'dark' ? '#1f2937' : '#fff',
                       borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',

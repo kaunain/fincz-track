@@ -22,9 +22,14 @@ import com.fincz.user.repository.UserRepository;
 import com.fincz.user.dto.UserResponse;
 import com.fincz.user.dto.UserUpdateRequest;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.time.LocalDateTime;
+import java.util.Base64;
 
 @Service
 @RequiredArgsConstructor
@@ -85,4 +90,30 @@ public class UserService {
         response.setMfaEnabled(profile.isMfaEnabled());
         return response;
     }
+
+    @Transactional
+    public UserResponse uploadAvatar(String email, MultipartFile file) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+    
+        try {
+            // Validate file type and size
+            if (!file.getContentType().startsWith("image/")) {
+                throw new IllegalArgumentException("Only image files are allowed");
+            }
+            
+            // Example: Convert to Base64 string to store directly (or save to S3 and store URL)
+            String base64Image = Base64.getEncoder().encodeToString(file.getBytes());
+            String avatarUrl = "data:" + file.getContentType() + ";base64," + base64Image;
+            
+            user.setAvatarUrl(avatarUrl);
+            userRepository.save(user);
+            
+            return convertToResponse(user); // Return updated DTO
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to upload avatar: " + e.getMessage());
+        }
+    }
+    
 }

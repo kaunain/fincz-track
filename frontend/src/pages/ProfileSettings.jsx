@@ -10,6 +10,37 @@ import { getInitials } from '../utils/stringUtils';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 
+const processImage = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 400; // Fixed 400x400 pixels for avatar
+        const size = Math.min(img.width, img.height);
+        const startX = (img.width - size) / 2;
+        const startY = (img.height - size) / 2;
+
+        canvas.width = MAX_SIZE;
+        canvas.height = MAX_SIZE;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, startX, startY, size, size, 0, 0, MAX_SIZE, MAX_SIZE);
+
+        // Compress as JPEG at 80% quality
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error('Canvas is empty'));
+          resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.8);
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+};
+
 const ProfileSettings = () => {
   const navigate = useNavigate();
   const { user, loading: userLoading, refreshUser } = useUser();
@@ -29,6 +60,7 @@ const ProfileSettings = () => {
   const [isConfirmRegenerateOpen, setIsConfirmRegenerateOpen] = useState(false);
   const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false);
   const [newRecoveryCodes, setNewRecoveryCodes] = useState([]);
+  const [avatarError, setAvatarError] = useState(false);
 
   const [mfaSetupData, setMfaSetupData] = useState(null);
   const [mfaCode, setMfaCode] = useState('');
@@ -96,6 +128,10 @@ const ProfileSettings = () => {
   }, []);
 
   useEffect(() => {
+    setAvatarError(false);
+  }, [profile.avatarUrl]);
+
+  useEffect(() => {
     if (user) {
       console.log('User data updated:', { email: user.email, mfaEnabled: user.mfaEnabled });
       setProfile({
@@ -156,21 +192,25 @@ const ProfileSettings = () => {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) { // 2MB Limit
-      toast.error('Image size should be less than 2MB');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const loadingToast = toast.loading('Uploading avatar...');
+    const loadingToast = toast.loading('Processing and uploading avatar...');
     try {
+      // Compress and center-crop the image to 400x400
+      const processedFile = await processImage(file);
+      
+      if (processedFile.size > 2 * 1024 * 1024) { // Limit check after compression
+        toast.error('Image size is still too large after compression', { id: loadingToast });
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', processedFile);
+
       const res = await userAPI.uploadAvatar(formData);
       await refreshUser();
       setProfile(prev => ({ ...prev, avatarUrl: res.data.avatarUrl }));
       toast.success('Avatar updated successfully!', { id: loadingToast });
     } catch (error) {
+      console.error("Avatar upload failed:", error);
       toast.error('Failed to upload avatar', { id: loadingToast });
     }
   };
@@ -279,8 +319,13 @@ const ProfileSettings = () => {
           <div className="flex items-center gap-6 mb-6">
             <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
               <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg transition-transform group-hover:scale-105 overflow-hidden">
-                {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                {profile.avatarUrl && !avatarError ? (
+                  <img 
+                    src={profile.avatarUrl} 
+                    alt="Avatar" 
+                    className="w-full h-full object-cover" 
+                    onError={() => setAvatarError(true)}
+                  />
                 ) : (
                   getInitials(profile.name || profile.email)
                 )}
