@@ -13,6 +13,7 @@ import { formatCurrency } from '../utils/formatters';
 import { calculateInvestmentValue } from '../utils/portfolioUtils';
 import { usePagination } from '../hooks/usePagination';
 import { useSearch } from '../context/SearchContext';
+import { useUser } from '../hooks/useUser';
 import SystemHealthFooter from '../components/SystemHealthFooter';
 
 const COLORS = ['#2563eb', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'];
@@ -27,6 +28,13 @@ const formatCompactNumber = (number) => {
   return n.toFixed(2);
 };
 
+const CURRENCY_SYMBOLS = {
+  INR: '₹',
+  USD: '$',
+  EUR: '€',
+  GBP: '£'
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [portfolio, setPortfolio] = useState(null);
@@ -38,6 +46,9 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const { searchTerm } = useSearch();
   const { theme } = useTheme();
+  const { user } = useUser();
+
+  const currencySymbol = CURRENCY_SYMBOLS[user?.currency || 'INR'] || '₹';
 
   const [expandedItems, setExpandedItems] = useState({});
   const toggleExpand = (id) => {
@@ -163,7 +174,7 @@ const Dashboard = () => {
       list.push({
         type: 'info',
         icon: Info,
-        text: `Tax-Loss Harvesting: Found ${analytics.taxLossOpportunities.length} opportunities to offset capital gains (Potential: ₹${formatCurrency(totalPotentialOffset)}).`
+        text: `Tax-Loss Harvesting: Found ${analytics.taxLossOpportunities.length} opportunities to offset capital gains (Potential: ${currencySymbol}${formatCurrency(totalPotentialOffset)}).`
       });
     }
 
@@ -316,8 +327,8 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Net Worth</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2" title={`₹${formatCurrency(totalValue)}`}>
-                  ₹{formatCompactNumber(totalValue)}
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2" title={`${currencySymbol}${formatCurrency(totalValue)}`}>
+                  {currencySymbol}{formatCompactNumber(totalValue)}
                 </p>
               </div>
               <DollarSign className="text-primary dark:text-blue-400" size={40} />
@@ -328,8 +339,8 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Profit/Loss</p>
-                <p className={`text-3xl font-bold mt-2 ${profitLoss >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${formatCurrency(Math.abs(profitLoss))}`}>
-                  {profitLoss >= 0 ? '+' : '-'}₹{formatCompactNumber(Math.abs(profitLoss))}
+                <p className={`text-3xl font-bold mt-2 ${profitLoss >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${formatCurrency(Math.abs(profitLoss))}`}>
+                  {profitLoss >= 0 ? '+' : '-'}{currencySymbol}{formatCompactNumber(Math.abs(profitLoss))}
                 </p>
               </div>
               <TrendingUp className={profitLoss >= 0 ? 'text-success' : 'text-danger'} size={40} />
@@ -408,7 +419,7 @@ const Dashboard = () => {
                   />
                   <YAxis 
                     tick={{ fontSize: 10, fill: theme === 'dark' ? '#9ca3af' : '#4b5563' }}
-                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                    tickFormatter={(value) => `${currencySymbol}${(value / 1000).toFixed(0)}k`}
                   />
                   <Tooltip 
                     contentStyle={{ 
@@ -416,7 +427,7 @@ const Dashboard = () => {
                       borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
                       borderRadius: '8px',
                     }}
-                    formatter={(value) => [`₹${formatCurrency(value)}`, 'Net Worth']}
+                    formatter={(value) => [`${currencySymbol}${formatCurrency(value)}`, 'Net Worth']}
                   />
                   <Area 
                     type="monotone" 
@@ -518,7 +529,7 @@ const Dashboard = () => {
                         {item.currentPrice && (
                           <>
                             <span>•</span>
-                            <span className="text-blue-600 dark:text-blue-400 font-medium">@ ₹{formatCurrency(item.currentPrice)}</span>
+                            <span className="text-blue-600 dark:text-blue-400 font-medium">@ {currencySymbol}{formatCurrency(item.currentPrice)}</span>
                           </>
                         )}
                       </div>
@@ -526,11 +537,11 @@ const Dashboard = () => {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="text-sm font-bold text-gray-900 dark:text-white">
-                          ₹{formatCurrency(item.currentValue)}
+                          {currencySymbol}{formatCurrency(item.currentValue)}
                         </p>
                         <div className="flex flex-col items-end">
                           <p className={`text-[10px] font-bold ${parseFloat(item.pnl || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
-                            {parseFloat(item.pnl || 0) >= 0 ? '▲' : '▼'} ₹{formatCurrency(Math.abs(item.pnl || 0))}
+                            {parseFloat(item.pnl || 0) >= 0 ? '▲' : '▼'} {currencySymbol}{formatCurrency(Math.abs(item.pnl || 0))}
                           </p>
                           <p className={`text-[10px] opacity-70 ${parseFloat(item.pnl || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
                             ({parseFloat(item.pnlPercentage || 0).toFixed(2)}%)
@@ -566,11 +577,11 @@ const Dashboard = () => {
                         className="overflow-hidden"
                       >
                         <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-600/50 grid grid-cols-2 md:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300 bg-gray-100/50 dark:bg-gray-800/30 rounded-b-lg">
-                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">Market Cap</span><span className="font-medium text-gray-900 dark:text-gray-200" title={item.marketCap ? `₹${formatCurrency(item.marketCap)}` : ''}>{item.marketCap ? `₹${formatCompactNumber(item.marketCap)}` : 'N/A'}</span></div>
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">Market Cap</span><span className="font-medium text-gray-900 dark:text-gray-200" title={item.marketCap ? `${currencySymbol}${formatCurrency(item.marketCap)}` : ''}>{item.marketCap ? `${currencySymbol}${formatCompactNumber(item.marketCap)}` : 'N/A'}</span></div>
                           <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">P/E Ratio</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.pe || 'N/A'}</span></div>
                           <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">EPS</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.eps || 'N/A'}</span></div>
-                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">52W High</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.high52 ? `₹${formatCurrency(item.high52)}` : 'N/A'}</span></div>
-                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">52W Low</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.low52 ? `₹${formatCurrency(item.low52)}` : 'N/A'}</span></div>
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">52W High</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.high52 ? `${currencySymbol}${formatCurrency(item.high52)}` : 'N/A'}</span></div>
+                          <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">52W Low</span><span className="font-medium text-gray-900 dark:text-gray-200">{item.low52 ? `${currencySymbol}${formatCurrency(item.low52)}` : 'N/A'}</span></div>
                           <div className="flex flex-col"><span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">Exchange</span><span className="font-medium text-gray-900 dark:text-gray-200 uppercase">{item.exchange || 'N/A'}</span></div>
                         </div>
                       </motion.div>
@@ -630,7 +641,7 @@ const Dashboard = () => {
                     ))}
                   </Pie>
                   <Tooltip 
-                    formatter={(value) => `₹${formatCurrency(value)}`}
+                    formatter={(value) => `${currencySymbol}${formatCurrency(value)}`}
                     contentStyle={{ 
                       backgroundColor: theme === 'dark' ? '#1f2937' : '#fff',
                       borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',

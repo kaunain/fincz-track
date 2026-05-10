@@ -14,6 +14,7 @@ import { calculateInvestmentValue } from '../utils/portfolioUtils';
 import { usePagination } from '../hooks/usePagination';
 import { useSearch } from '../context/SearchContext';
 import ImportPreviewModal from '../components/ImportPreviewModal';
+import { useUser } from '../hooks/useUser';
 import { downloadCSV } from '../utils/exportUtils';
 import SystemHealthFooter from '../components/SystemHealthFooter';
 import { useDebounce } from '../hooks/useDebounce';
@@ -28,6 +29,13 @@ const formatCompactNumber = (number) => {
   if (n >= 100000) return (n / 100000).toFixed(2) + ' L';
   if (n >= 1000) return (n / 1000).toFixed(2) + ' K';
   return n.toFixed(2);
+};
+
+const CURRENCY_SYMBOLS = {
+  INR: '₹',
+  USD: '$',
+  EUR: '€',
+  GBP: '£'
 };
 
 const ReportsPage = () => {
@@ -330,15 +338,15 @@ const ReportsPage = () => {
           </Card>
           <Card loading={loading}>
             <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Value</p>
-            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1" title={`₹${formatCurrency(totalPortfolioValue)}`}>
-              ₹{formatCompactNumber(totalPortfolioValue)}
+            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1" title={`${currencySymbol}${formatCurrency(totalPortfolioValue)}`}>
+              {currencySymbol}{formatCompactNumber(totalPortfolioValue)}
             </p>
           </Card>
         <Card loading={loading}>
           <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Total Profit/Loss</p>
           <div className="flex items-center gap-2 mt-1">
-            <p className={`text-3xl font-bold ${profitLoss >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${formatCurrency(Math.abs(profitLoss))}`}>
-              {profitLoss >= 0 ? '+' : '-'}₹{formatCompactNumber(Math.abs(profitLoss))}
+            <p className={`text-3xl font-bold ${profitLoss >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${formatCurrency(Math.abs(profitLoss))}`}>
+              {profitLoss >= 0 ? '+' : '-'}{currencySymbol}{formatCompactNumber(Math.abs(profitLoss))}
             </p>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${profitPercentage >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
               {profitPercentage >= 0 ? '▲' : '▼'} {Math.abs(profitPercentage).toFixed(2)}%
@@ -367,11 +375,11 @@ const ReportsPage = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Tax Saving (80C)</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">₹{formatCurrency(taxStats.total80C)}</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">{currencySymbol}{formatCurrency(taxStats.total80C)}</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] text-gray-400 uppercase font-bold">Limit: 1.5L</p>
-                <p className="text-xs font-semibold text-orange-500 mt-1">₹{formatCurrency(taxStats.remaining80C)} left</p>
+                <p className="text-xs font-semibold text-orange-500 mt-1">{currencySymbol}{formatCurrency(taxStats.remaining80C)} left</p>
               </div>
             </div>
             <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
@@ -386,11 +394,11 @@ const ReportsPage = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">NPS Extra (80CCD)</p>
-                <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">₹{formatCurrency(taxStats.total80CCD)}</p>
+                <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{currencySymbol}{formatCurrency(taxStats.total80CCD)}</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] text-gray-400 uppercase font-bold">Limit: 50K</p>
-                <p className="text-xs font-semibold text-orange-500 mt-1">₹{formatCurrency(taxStats.remaining80CCD)} left</p>
+                <p className="text-xs font-semibold text-orange-500 mt-1">{currencySymbol}{formatCurrency(taxStats.remaining80CCD)} left</p>
               </div>
             </div>
             <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
@@ -418,7 +426,7 @@ const ReportsPage = () => {
                   />
                   <YAxis 
                     tick={{ fontSize: 10, fill: theme === 'dark' ? '#9ca3af' : '#4b5563' }}
-                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                    tickFormatter={(value) => `${currencySymbol}${(value / 1000).toFixed(0)}k`}
                   />
                   <Tooltip 
                     contentStyle={{ 
@@ -428,7 +436,7 @@ const ReportsPage = () => {
                       color: theme === 'dark' ? '#f3f4f6' : '#111827'
                     }}
                     itemStyle={{ color: theme === 'dark' ? '#f3f4f6' : '#111827' }}
-                    formatter={(value) => [`₹${formatCurrency(value)}`, 'Net Worth']}
+                    formatter={(value) => [`${currencySymbol}${formatCurrency(value)}`, 'Net Worth']}
                   />
                   <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 </LineChart>
@@ -655,10 +663,10 @@ const ReportsPage = () => {
                       <td className="px-6 py-4 text-gray-600 dark:text-gray-400 capitalize">{item.type}</td>
                       <td className="px-6 py-4 text-right text-gray-700 dark:text-gray-300">{parseFloat(item.units).toLocaleString()}</td>
                       <td className="px-6 py-4 text-right text-gray-700 dark:text-gray-300">
-                        ₹{formatCurrency(parseFloat(item.buyPrice))}
+                        {currencySymbol}{formatCurrency(parseFloat(item.buyPrice))}
                       </td>
                       <td className="px-6 py-4 text-right text-blue-600 dark:text-blue-400 font-medium">
-                        ₹{formatCurrency(parseFloat(item.currentPrice || item.buyPrice))}
+                        {currencySymbol}{formatCurrency(parseFloat(item.currentPrice || item.buyPrice))}
                       </td>
                       <td className="px-6 py-4 text-right text-gray-600 dark:text-gray-400">
                         {item.pe ? parseFloat(item.pe).toFixed(2) : (
@@ -676,7 +684,7 @@ const ReportsPage = () => {
                         <div className="flex flex-col items-end">
                           <div className="flex items-center gap-1">
                             {parseFloat(item.pnl) >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                            ₹{formatCurrency(Math.abs(item.pnl))}
+                            {currencySymbol}{formatCurrency(Math.abs(item.pnl))}
                           </div>
                           <span className="text-[10px] opacity-80">
                             {parseFloat(item.pnlPercentage).toFixed(2)}%
@@ -684,7 +692,7 @@ const ReportsPage = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right font-semibold text-blue-600 dark:text-blue-400">
-                        ₹{formatCurrency(item.currentValue)}
+                        {currencySymbol}{formatCurrency(item.currentValue)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center gap-2">
@@ -799,12 +807,12 @@ const ReportsPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700">
                     <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Current Value</p>
-                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">₹{formatCurrency(selectedAsset.currentValue)}</p>
+                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{currencySymbol}{formatCurrency(selectedAsset.currentValue)}</p>
                   </div>
                   <div className={`p-4 rounded-xl border ${parseFloat(selectedAsset.pnl) >= 0 ? 'bg-green-50 border-green-100 dark:bg-green-900/10 dark:border-green-800/30' : 'bg-red-50 border-red-100 dark:bg-red-900/10 dark:border-red-800/30'}`}>
                     <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Total P&L</p>
                     <p className={`text-xl font-bold ${parseFloat(selectedAsset.pnl) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {parseFloat(selectedAsset.pnl) >= 0 ? '+' : ''}₹{formatCurrency(selectedAsset.pnl)}
+                      {parseFloat(selectedAsset.pnl) >= 0 ? '+' : ''}{currencySymbol}{formatCurrency(selectedAsset.pnl)}
                     </p>
                   </div>
                 </div>
@@ -813,11 +821,11 @@ const ReportsPage = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex items-center gap-2 text-sm text-gray-500"><Zap size={14} /> Buy Price</div>
-                    <div className="font-semibold dark:text-white">₹{formatCurrency(selectedAsset.buyPrice)}</div>
+                    <div className="font-semibold dark:text-white">{currencySymbol}{formatCurrency(selectedAsset.buyPrice)}</div>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex items-center gap-2 text-sm text-gray-500"><TrendingUp size={14} /> Current Price</div>
-                    <div className="font-semibold dark:text-white">₹{formatCurrency(selectedAsset.currentPrice)}</div>
+                    <div className="font-semibold dark:text-white">{currencySymbol}{formatCurrency(selectedAsset.currentPrice)}</div>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex items-center gap-2 text-sm text-gray-500"><Info size={14} /> Total Units</div>
@@ -839,11 +847,11 @@ const ReportsPage = () => {
                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Market Metrics</h4>
                   <div className="grid grid-cols-3 gap-y-4 gap-x-2">
-                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">Market Cap</span><span className="font-semibold text-sm dark:text-white" title={selectedAsset.marketCap ? `₹${formatCurrency(selectedAsset.marketCap)}` : ''}>{selectedAsset.marketCap ? `₹${formatCompactNumber(selectedAsset.marketCap)}` : 'N/A'}</span></div>
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">Market Cap</span><span className="font-semibold text-sm dark:text-white" title={selectedAsset.marketCap ? `${currencySymbol}${formatCurrency(selectedAsset.marketCap)}` : ''}>{selectedAsset.marketCap ? `${currencySymbol}${formatCompactNumber(selectedAsset.marketCap)}` : 'N/A'}</span></div>
                     <div className="flex flex-col"><span className="text-[10px] text-gray-500">P/E Ratio</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.pe || 'N/A'}</span></div>
                     <div className="flex flex-col"><span className="text-[10px] text-gray-500">EPS</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.eps || 'N/A'}</span></div>
-                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">52W High</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.high52 ? `₹${formatCurrency(selectedAsset.high52)}` : 'N/A'}</span></div>
-                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">52W Low</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.low52 ? `₹${formatCurrency(selectedAsset.low52)}` : 'N/A'}</span></div>
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">52W High</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.high52 ? `${currencySymbol}${formatCurrency(selectedAsset.high52)}` : 'N/A'}</span></div>
+                    <div className="flex flex-col"><span className="text-[10px] text-gray-500">52W Low</span><span className="font-semibold text-sm dark:text-white">{selectedAsset.low52 ? `${currencySymbol}${formatCurrency(selectedAsset.low52)}` : 'N/A'}</span></div>
                     <div className="flex flex-col"><span className="text-[10px] text-gray-500">Exchange</span><span className="font-semibold text-sm dark:text-white uppercase">{selectedAsset.exchange || 'N/A'}</span></div>
                   </div>
                 </div>
