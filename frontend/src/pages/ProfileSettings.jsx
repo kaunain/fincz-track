@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, Lock, ShieldCheck, Trash2, Globe, Monitor, LogOut, X, AlertTriangle, Camera, CheckCircle, Copy, Download, RefreshCw, Zap } from 'lucide-react';
+import { User, Mail, Phone, Lock, ShieldCheck, Trash2, Globe, Monitor, LogOut, X, AlertTriangle, Camera, CheckCircle, Copy, Download, RefreshCw, Zap, Settings, ArrowLeft } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -61,6 +61,8 @@ const ProfileSettings = () => {
   const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false);
   const [newRecoveryCodes, setNewRecoveryCodes] = useState([]);
   const [avatarError, setAvatarError] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const [mfaSetupData, setMfaSetupData] = useState(null);
   const [mfaCode, setMfaCode] = useState('');
@@ -150,6 +152,26 @@ const ProfileSettings = () => {
     }
   }, [isMfaModalOpen]);
 
+  const handleCancel = () => {
+    if (isDirty) {
+      setShowCancelConfirm(true);
+    } else {
+      navigate(-1);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Prevent Escape navigation if a modal is open
+      const isAnyModalOpen = isMfaModalOpen || isDeleteModalOpen || isPasswordModalOpen || isDisableMfaModalOpen || isConfirmRegenerateOpen || isRegenerateModalOpen || showCancelConfirm;
+      if (e.key === 'Escape' && !isAnyModalOpen) {
+        handleCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate, isDirty, isMfaModalOpen, isDeleteModalOpen, isPasswordModalOpen, isDisableMfaModalOpen, isConfirmRegenerateOpen, isRegenerateModalOpen, showCancelConfirm]);
+
   const fetchMfaSetup = async () => {
     try {
       setMfaLoading(true);
@@ -173,6 +195,7 @@ const ProfileSettings = () => {
         currency: profile.currency
       });
       await refreshUser();
+      setIsDirty(false);
       toast.success('Profile updated successfully!', { id: loadingToast });
     } catch (error) {
       toast.error('Failed to update profile', { id: loadingToast });
@@ -311,168 +334,233 @@ const ProfileSettings = () => {
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8"
+      className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8 transition-colors duration-200"
     >
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div>
-          {/* Header with Avatar Initials */}
-          <div className="flex items-center gap-6 mb-6">
-            <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
-              <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg transition-transform group-hover:scale-105 overflow-hidden">
-                {profile.avatarUrl && !avatarError ? (
-                  <img 
-                    src={profile.avatarUrl} 
-                    alt="Avatar" 
-                    className="w-full h-full object-cover" 
-                    onError={() => setAvatarError(true)}
-                  />
-                ) : (
-                  getInitials(profile.name || profile.email)
-                )}
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera className="text-white w-6 h-6" />
-              </div>
-              <input 
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/*"
-                onChange={handleFileChange}
-              />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{profile.name}</h1>
-              <p className="text-gray-500 dark:text-gray-400 uppercase tracking-wider text-sm font-semibold">Premium Member</p>
-            </div>
+      <div className="max-w-6xl mx-auto">
+        
+        <button 
+          onClick={handleCancel} 
+          className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 mb-6 transition-colors"
+        >
+          <ArrowLeft size={16} /> Back
+        </button>
+
+        {/* Page Header */}
+        <div className="flex items-center mb-8">
+          <div className="p-3 rounded-xl mr-4 text-white bg-blue-600 shadow-lg shadow-blue-500/30">
+            <Settings size={24} />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
-          <p className="text-gray-500 dark:text-gray-400">Manage your profile information and security preferences.</p>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Account Settings</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">Manage your profile information and security preferences.</p>
+          </div>
         </div>
 
-        {/* Profile Information */}
-        <motion.section variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
-              <User className="w-5 h-5" />
-              <h2>Personal Information</h2>
-            </div>
-          </div>
-          <form onSubmit={handleUpdateProfile} className="p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                <input 
-                  type="text" 
-                  value={profile.name}
-                  onChange={(e) => setProfile({...profile, name: e.target.value})}
-                  className="pl-10 block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
-                  placeholder="Your Name" 
-                />
-              </div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                  <input 
-                    type="email" 
-                    value={profile.email}
-                    onChange={(e) => setProfile({...profile, email: e.target.value})}
-                    className="pl-10 block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
-                    placeholder="email@example.com" 
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mobile Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                  <input 
-                    type="tel" 
-                    value={profile.mobile}
-                    onChange={(e) => setProfile({...profile, mobile: e.target.value})}
-                    className="pl-10 block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
-                    placeholder="+91 XXXXX XXXXX" 
-                  />
-                </div>
-              </div>
-            </div>
-            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-              Update Profile
-            </button>
-          </form>
-        </motion.section>
-
-        {/* User Preferences */}
-        <motion.section variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
-              <Globe className="w-5 h-5" />
-              <h2>Preferences</h2>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="max-w-sm">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base Currency</label>
-              <select 
-                value={profile.currency}
-                onChange={(e) => setProfile({...profile, currency: e.target.value})}
-                className="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="INR">Indian Rupee (₹)</option>
-                <option value="USD">US Dollar ($)</option>
-                <option value="EUR">Euro (€)</option>
-              </select>
-              <p className="mt-2 text-xs text-gray-500">This will affect how your total net worth is calculated.</p>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Market Data Sync */}
-        <motion.section variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-2 w-full max-w-md">
-                <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
-                  <RefreshCw className={`w-5 h-5 ${syncStatus.inProgress ? 'animate-spin text-blue-600' : ''}`} />
-                  <h2>Market Data</h2>
-                  {syncStatus.inProgress && (
-                    <span className="ml-2 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold rounded-full animate-pulse uppercase tracking-tighter">
-                      In Progress {syncStatus.totalSymbols > 0 ? `(${Math.round((syncStatus.processedSymbols / syncStatus.totalSymbols) * 100)}%)` : ''}
-                    </span>
-                  )}
-                </div>
-                {syncStatus.inProgress && (
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${syncStatus.totalSymbols > 0 ? Math.round((syncStatus.processedSymbols / syncStatus.totalSymbols) * 100) : 0}%` }}
-                      className="bg-blue-600 h-full rounded-full transition-all duration-500"
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column: Forms & Settings */}
+          <div className="lg:col-span-2">
+            
+            {/* Profile Information Form */}
+            <motion.div variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 md:p-8">
+              <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-6 border-b border-gray-100 dark:border-gray-700 pb-2">Personal Information</h3>
+              <form onSubmit={handleUpdateProfile} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text" 
+                      value={profile.name}
+                      onChange={(e) => {
+                        setProfile({...profile, name: e.target.value});
+                        setIsDirty(true);
+                      }}
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                      placeholder="Your Name" 
                     />
                   </div>
-                )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input 
+                        type="email" 
+                        value={profile.email}
+                        onChange={(e) => {
+                          setProfile({...profile, email: e.target.value});
+                          setIsDirty(true);
+                        }}
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                        placeholder="email@example.com" 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Mobile Number</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input 
+                        type="tel" 
+                        value={profile.mobile}
+                        onChange={(e) => {
+                          setProfile({...profile, mobile: e.target.value});
+                          setIsDirty(true);
+                        }}
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" 
+                        placeholder="+91 XXXXX XXXXX" 
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <button type="submit" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-500/30">
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+
+            {/* Security Section */}
+            <motion.div variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 md:p-8 mt-6">
+              <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-6 border-b border-gray-100 dark:border-gray-700 pb-2">Security Settings</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600/50">
+                  <div className="flex items-center gap-4">
+                    <ShieldCheck className={`w-8 h-8 ${user?.mfaEnabled ? 'text-green-500' : 'text-gray-400'}`} />
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">Two-Factor Authentication (2FA)</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {user?.mfaEnabled ? 'Your account is protected with 2FA.' : 'Add an extra layer of security to your account.'}
+                      </p>
+                    </div>
+                  </div>
+                  {!user?.mfaEnabled ? (
+                    <button onClick={() => setIsMfaModalOpen(true)} className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors whitespace-nowrap">
+                      Enable 2FA
+                    </button>
+                  ) : (
+                    <div className="flex flex-col items-end gap-2">
+                      <span className="text-green-600 text-sm font-bold flex items-center gap-1"><CheckCircle size={14} /> Active</span>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => setIsConfirmRegenerateOpen(true)} className="text-blue-600 text-xs font-medium hover:underline whitespace-nowrap">Regenerate Codes</button>
+                        <button onClick={() => setIsDisableMfaModalOpen(true)} className="text-red-600 text-xs font-medium hover:underline">Disable</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex items-center justify-between p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600/50">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-full">
+                      <Lock className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">Account Password</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Regularly changing your password improves account security.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsPasswordModalOpen(true)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    Update
+                  </button>
+                </div>
               </div>
-              {lastSyncTime && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                  Last successful sync: {new Date(lastSyncTime).toLocaleString()}
-                </span>
-              )}
-            </div>
+            </motion.div>
+
+            {/* Danger Zone */}
+            <motion.div variants={containerVariants} className="bg-red-50 dark:bg-red-900/10 rounded-2xl shadow-sm border border-red-100 dark:border-red-900/30 p-6 md:p-8 mt-6">
+              <h3 className="text-sm font-bold text-red-800 dark:text-red-400 uppercase tracking-wider mb-4 border-b border-red-200 dark:border-red-800/30 pb-2 flex items-center gap-2"><Trash2 size={16} /> Danger Zone</h3>
+              <p className="text-sm text-red-600 dark:text-red-400/80 mb-5">Once you delete your account, there is no going back. This will permanently delete your account and all associated investment data.</p>
+              <button onClick={() => setIsDeleteModalOpen(true)} className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20">
+                Delete Account
+              </button>
+            </motion.div>
           </div>
-          <div className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Manual Price Refresh</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Fetch latest prices for all symbols in your portfolio. (Cooldown applies)</p>
+
+          {/* Right Column: Summaries & Widgets */}
+          <div className="lg:col-span-1 space-y-6">
+            
+            {/* Profile Avatar Card */}
+            <motion.div variants={containerVariants} className="bg-gradient-to-br from-blue-600 to-indigo-800 rounded-2xl p-6 text-white shadow-xl shadow-blue-900/20 relative overflow-hidden flex flex-col items-center text-center">
+              <ShieldCheck className="absolute right-[-20px] top-[-20px] text-white/10 pointer-events-none" size={120} />
+              <div className="relative z-10 w-full flex flex-col items-center">
+                <div className="relative group cursor-pointer mb-5" onClick={handleAvatarClick}>
+                  <div className="w-28 h-28 rounded-full bg-white/20 border-4 border-white/30 flex items-center justify-center text-white text-4xl font-bold shadow-lg transition-transform group-hover:scale-105 overflow-hidden">
+                    {profile.avatarUrl && !avatarError ? (
+                      <img 
+                        src={profile.avatarUrl} 
+                        alt="Avatar" 
+                        className="w-full h-full object-cover" 
+                        onError={() => setAvatarError(true)}
+                      />
+                    ) : (
+                      getInitials(profile.name || profile.email)
+                    )}
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="text-white w-6 h-6" />
+                  </div>
+                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+                </div>
+                <h3 className="text-2xl font-bold tracking-tight">{profile.name || 'Fincz User'}</h3>
+                <p className="text-blue-200 text-sm font-medium mt-1">{profile.email}</p>
+                <span className="mt-4 px-3 py-1 bg-white/20 rounded-full text-xs font-bold uppercase tracking-wider border border-white/20">
+                  Premium Member
+                </span>
               </div>
-              <div className="flex gap-2">
+            </motion.div>
+
+            {/* Preferences Widget */}
+            <motion.div variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Globe size={18} className="text-blue-500" /> App Preferences</h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Base Currency</label>
+                <select 
+                  value={profile.currency}
+                  onChange={(e) => {
+                    setProfile({...profile, currency: e.target.value});
+                    // Auto save currency change
+                    userAPI.updateProfile({ ...profile, currency: e.target.value }).then(() => refreshUser());
+                  }}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
+                >
+                  <option value="INR">Indian Rupee (₹)</option>
+                  <option value="USD">US Dollar ($)</option>
+                  <option value="EUR">Euro (€)</option>
+                  <option value="GBP">British Pound (£)</option>
+                </select>
+                <p className="mt-2 text-[10px] text-gray-500 uppercase font-bold tracking-wider">Affects total net worth calculations</p>
+              </div>
+            </motion.div>
+
+            {/* Market Data Sync Widget */}
+            <motion.div variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center justify-between">
+                <span className="flex items-center gap-2"><RefreshCw size={18} className={`text-amber-500 ${syncStatus.inProgress ? 'animate-spin' : ''}`} /> Market Sync</span>
+                {syncStatus.inProgress && (
+                  <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded-full animate-pulse uppercase">
+                    {syncStatus.totalSymbols > 0 ? `${Math.round((syncStatus.processedSymbols / syncStatus.totalSymbols) * 100)}%` : 'Syncing'}
+                  </span>
+                )}
+              </h3>
+              
+              {syncStatus.inProgress && syncStatus.totalSymbols > 0 && (
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden mb-4">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${(syncStatus.processedSymbols / syncStatus.totalSymbols) * 100}%` }} className="bg-amber-500 h-full rounded-full" />
+                </div>
+              )}
+
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+                Fetch latest closing prices for all assets. <br/>
+                <span className="font-medium opacity-70">Last: {lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString() : 'Never'}</span>
+              </p>
+
+              <div className="flex flex-col gap-2">
                 <button 
                   onClick={handleManualRefresh}
                   disabled={isSyncing || syncStatus.inProgress}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-bold text-sm"
                 >
                   {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap size={16} fill="currentColor" />}
                   {isSyncing ? "Syncing..." : "Sync Prices"}
@@ -481,7 +569,7 @@ const ProfileSettings = () => {
                   <button 
                     onClick={handleForceRefresh}
                     disabled={isSyncing || syncStatus.inProgress}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="w-full py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-bold text-sm"
                     title="Admin: Bypass 24h cooldown"
                   >
                     {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck size={16} />}
@@ -489,110 +577,23 @@ const ProfileSettings = () => {
                   </button>
                 )}
               </div>
-            </div>
-          </div>
-        </motion.section>
+            </motion.div>
 
-        {/* Security Section */}
-        <motion.section variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
-              <Lock className="w-5 h-5" />
-              <h2>Security</h2>
-            </div>
-          </div>
-          <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            {/* Session Widget */}
+            <motion.div variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center justify-between"><span className="flex items-center gap-2"><Monitor size={18} className="text-green-500" /> Active Session</span></h3>
               <div className="flex items-center gap-3">
-                <ShieldCheck className={`w-6 h-6 ${user?.mfaEnabled ? 'text-green-500' : 'text-gray-400'}`} />
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {user?.mfaEnabled ? 'Your account is protected with 2FA.' : 'Add an extra layer of security to your account.'}
-                  </p>
+                <div className="flex-1">
+                  <p className="font-medium text-sm text-gray-900 dark:text-white">Chrome on Web</p>
+                  <p className="text-xs text-gray-500">Current Device</p>
                 </div>
+                <button className="text-red-600 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Logout all other devices">
+                  <LogOut size={16} />
+                </button>
               </div>
-              {!user?.mfaEnabled && (
-                <button 
-                  onClick={() => setIsMfaModalOpen(true)}
-                  className="text-blue-600 font-medium hover:underline"
-                >Enable</button>
-              )}
-              {user?.mfaEnabled && (
-                <div className="flex items-center gap-4">
-                  <span className="text-green-600 text-sm font-bold flex items-center gap-1">
-                    <CheckCircle size={14} /> Active
-                  </span>
-                  <button 
-                    onClick={() => setIsConfirmRegenerateOpen(true)}
-                    className="text-blue-600 text-sm font-medium hover:underline"
-                  >Regenerate Codes</button>
-                  <button 
-                    onClick={() => setIsDisableMfaModalOpen(true)}
-                    className="text-red-600 text-sm font-medium hover:underline"
-                  >Disable</button>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-full">
-                  <Lock className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Account Password</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Regularly changing your password improves account security.</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setIsPasswordModalOpen(true)}
-                className="text-blue-600 font-medium hover:underline"
-              >
-                Update
-              </button>
-            </div>
+            </motion.div>
           </div>
-        </motion.section>
-
-        {/* Session Management */}
-        <motion.section variants={containerVariants} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
-              <Monitor className="w-5 h-5" />
-              <h2>Active Sessions</h2>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-full"><Monitor className="w-5 h-5 text-green-600" /></div>
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Current Session — Chrome on Linux</p>
-                  <p className="text-sm text-gray-500">192.168.1.1</p>
-                </div>
-              </div>
-              <button className="text-red-600 text-sm font-medium flex items-center gap-1 hover:underline">
-                <LogOut className="w-4 h-4" /> Logout all other devices
-              </button>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Danger Zone */}
-        <motion.section variants={containerVariants} className="bg-red-50 dark:bg-red-900/10 rounded-xl shadow-sm border border-red-200 dark:border-red-900/30 overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-center gap-2 font-semibold text-red-800 dark:text-red-400 mb-2">
-              <Trash2 className="w-5 h-5" />
-              <h2>Danger Zone</h2>
-            </div>
-            <p className="text-sm text-red-600 dark:text-red-400/80 mb-4">Once you delete your account, there is no going back. Please be certain.</p>
-            <button 
-              onClick={() => setIsDeleteModalOpen(true)}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-            >Delete Account</button>
-          </div>
-        </motion.section>
+        </div>
       </div>
 
       {/* MFA Setup Modal */}
@@ -801,6 +802,16 @@ const ProfileSettings = () => {
         confirmText="Disable"
       >
         Are you sure you want to disable Two-Factor Authentication? Your account will be less secure and you will only need your password to log in.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        onConfirm={() => navigate(-1)}
+        title="Discard Changes?"
+        confirmText="Discard"
+      >
+        You have unsaved changes to your personal information. Are you sure you want to discard them and leave this page?
       </ConfirmDialog>
     </motion.div>
   );

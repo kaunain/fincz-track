@@ -40,7 +40,7 @@ This document outlines the strategic roadmap, completed milestones, and future e
 ## 📅 Future Phases
 
 ### 🟣 Phase 5: Wealth Management & Intelligence
-- [ ] **Automated Rebalancing**: Visual alerts when asset allocation deviates >5% from the user's target.
+- [x] **Automated Rebalancing**: Visual alerts when asset allocation deviates >5% from the user's target.
 - [ ] **SIP Forecaster**: Projection charts modeling future net worth based on current SIPs and expected ROI.
 - [ ] **Family Accounts**: Master dashboard to manage multiple family member portfolios under a single login scope.
 - [ ] **AI Portfolio Health Check**: LLM-based insights (e.g., *"Your portfolio is heavily weighted in IT; consider diversification"*).
