@@ -246,8 +246,8 @@ public int updateCurrentPrices(String symbol, BigDecimal currentPrice) {
 - [x] **Asset Drill-down**: Update the drill-down modal to show detailed market stats.
 
 ### Phase 4: Financial Logic & Accuracy
-- [ ] **Validation**: Gracefully handle `null` or `N/A` values for metrics.
-- [ ] **Consistency**: Ensure units/currency symbols are consistent across all views.
+- [x] **Validation**: Gracefully handle `null` or `N/A` values for metrics.
+- [x] **Consistency**: Ensure units/currency symbols are consistent across all views.
 
 ### 📤 Phase 5: Market Data Sync Tooling (New)
 - [x] **Registry Export**: Add CSV download for distinct assets (Ticker, Type, Exchange). (Backend Fix Applied)
