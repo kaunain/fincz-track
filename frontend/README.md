@@ -4,13 +4,14 @@ Modern investment portfolio management web application built with React, Vite, a
 
 ## 🚀 Features
 
-- **Authentication**: Secure signup and login with JWT tokens
-- **Dashboard**: Real-time portfolio overview with net worth visualization
-- **Asset Allocation**: Interactive pie chart showing portfolio composition
-- **Portfolio Management**: Add and track various investment types (stocks, mutual funds, NPS, gold, crypto, bonds)
-- **Analytics & Reports**: Detailed charts and statistics for investment analysis
-- **Responsive Design**: Fully responsive UI for desktop and mobile devices
-- **Real-time Sync**: Updates synchronized with backend services
+- **Authentication & Security**: JWT tokens, Multi-Factor Authentication (MFA), and active session management.
+- **Profile Settings**: Manage personal details, avatar, and base currency preference (INR/USD/EUR).
+- **Dashboard**: Real-time portfolio overview, Net Worth visualization, and Asset Allocation pie charts.
+- **Portfolio Management**: Add and track various investment types (stocks, mutual funds, NPS, gold, crypto, bonds).
+- **CSV Import/Export**: Bulk import investments and export market registry to CSV.
+- **Analytics & Reports**: Detailed charts, sortable tables, and statistics for investment analysis.
+- **UI/UX**: Responsive mobile-first design, seamless Dark Mode, Framer Motion animations, Sonner toasts, and Skeleton loaders.
+- **Data Storytelling**: Smart portfolio insights and conditional alerts.
 
 ## 🛠️ Tech Stack
 
@@ -21,6 +22,19 @@ Modern investment portfolio management web application built with React, Vite, a
 - **Charts**: Recharts
 - **Routing**: React Router DOM
 - **Icons**: Lucide React
+- **Animations**: Framer Motion
+- **Notifications**: Sonner
+- **MFA QR**: qrcode.react
+
+## 🗺️ Page Routes
+
+- `/login` - Login page
+- `/signup` - Signup page (redirects to login)
+- `/dashboard` - Main dashboard (protected)
+- `/add-investment` - Add investment form (protected)
+- `/import` - Bulk import data wizard (protected)
+- `/reports` - Analytics & reports (protected)
+- `/profile` - Account and security settings (protected)
 
 ## 📦 Prerequisites
 
@@ -78,7 +92,8 @@ frontend/
 │   ├── pages/
 │   │   ├── AuthPage.jsx         # Login/Signup
 │   │   ├── Dashboard.jsx        # Main dashboard
-│   │   ├── AddInvestment.jsx    # Add investment form
+│   │   ├── AddInvestment.jsx    # Add investment form & Edit
+│   │   ├── ProfileSettings.jsx  # User account & security
 │   │   └── ReportsPage.jsx      # Analytics & reports
 │   ├── utils/
 │   │   ├── api.js               # API client & endpoints
