@@ -71,6 +71,9 @@ const ReportsPage = () => {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const { theme } = useTheme();
+  const { user } = useUser();
+
+  const currencySymbol = CURRENCY_SYMBOLS[user?.currency || 'INR'] || '₹';
 
   const filteredAndSortedPortfolio = useMemo(() => {
     if (!portfolio) return [];
