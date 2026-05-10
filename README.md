@@ -4,6 +4,44 @@ A full-stack **microservices-based financial tracking platform** where users can
 
 ---
 
+## 📸 Application Screenshots
+
+### Dashboard Overview
+Get a comprehensive view of your net worth, total investments, and asset allocation at a glance.
+
+![Dashboard Main View](demo/Dashboard-1.avif)
+
+![Dashboard Detailed View](demo/Dashboard-2.avif)
+
+### Reports & Analytics
+Deep dive into your financial data with detailed charts, concentration risk analysis, and historical performance trends.
+
+![Reports Analytics 1](demo/Reports-1.avif)
+
+![Reports Analytics 2](demo/Reports-2.avif)
+
+![Reports Analytics 3](demo/Reports-3.avif)
+
+### Investment Management
+Easily add single investments or bulk import your existing portfolio via CSV mapping.
+
+![Add New Investment](demo/New-Investment.avif)
+
+![Bulk Import Data](demo/Import.avif)
+
+### User Profile & Authentication
+Manage your profile, customize preferences, and secure your account with Two-Factor Authentication (2FA).
+
+![User Profile Settings](demo/Profile-1.avif)
+
+![Security Settings](demo/Profile-2.avif)
+
+![Login Screen](demo/Login.avif)
+
+<br>
+
+---
+
 ## 🎯 Key Features
 
 ### Authentication & Security
