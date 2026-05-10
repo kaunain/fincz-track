@@ -319,12 +319,37 @@ To quickly validate the entire project and auto-fix common issues:
 - Advanced CI/CD and deployments.
 - PDF Export engine and Watchlist feature implementation.
 
+
+---
+
+## 🤝 Contribution
+
+This is an open project. Contributions, suggestions, and improvements are welcome.
+
 ---
 
 ## 📄 License
+
 Apache License
 Version 2.0
 
 ---
 
+## 👨‍💻 Author
+
 Developed by **Kaunain Ahmad**
+
+---
+
+## ⭐ Why This Project?
+
+This project demonstrates:
+
+* Real-world microservices architecture
+* Full-stack development (Java + Node + React)
+* Scalable system design
+* Financial domain expertise
+
+---
+
+🔥 If you like this project, don't forget to give it a star!
