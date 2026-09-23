@@ -69,6 +69,8 @@ logs/
 .env
 .env.local
 .env.production
+.env.postgres
+.env.*.local
 
 # Node.js (if any frontend)
 node_modules/
